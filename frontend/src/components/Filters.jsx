@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import CustomSelect from './CustomSelect'; // The custom dropdown component
+import SearchableDropdown from './SearchableDropdown'; // Import the new component
+import { mockOccupations } from '../mockOccupations'; // Import our mock data
 
 // Define the options for our dropdowns as constant arrays
 const educationOptions = [
@@ -31,13 +33,14 @@ const FilterRow = ({ label, children }) => (
 function Filters({ onCalculate }) {
   // State hooks to manage the form inputs
   const [location, setLocation] = useState('San Francisco, CA');
+  const [occupation, setOccupation] = useState(''); // Add state for occupation
   const [minSalary, setMinSalary] = useState(80000);
   const [education, setEducation] = useState(educationOptions[3]); // Default to "Bachelor's degree"
   const [experience, setExperience] = useState(experienceOptions[2]); // Default to "2-4 years"
 
   const handleSubmit = (event) => {
     event.preventDefault(); // Prevent full page reload on form submission
-    onCalculate({ location, minSalary, education, experience });
+    onCalculate({ location, occupation, minSalary, education, experience });
   };
 
   return (
@@ -50,6 +53,16 @@ function Filters({ onCalculate }) {
       </p>
 
       <form onSubmit={handleSubmit} className="flex-grow">
+        <FilterRow label="Occupation / Field">
+          {/* Use our new searchable dropdown component */}
+          <SearchableDropdown
+            options={mockOccupations}
+            value={occupation}
+            onChange={setOccupation}
+            placeholder="e.g., Software Developer"
+          />
+        </FilterRow>
+
         <FilterRow label="Location (City, State)">
           <input
             type="text"
