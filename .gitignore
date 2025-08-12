@@ -1,0 +1,122 @@
+# ===================================================================
+# General & OS-specific files
+# ===================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+
+# Windows
+[Dd]esktop.ini
+
+# IDE & Editor-specific
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# = a==================================================================
+# Node.js / React Frontend (`frontend/` directory)
+# ===================================================================
+# Dependency directories
+frontend/node_modules/
+
+# Logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/lerna-debug.log*
+
+# Build output
+frontend/dist/
+frontend/build/
+
+# Vite-specific files
+frontend/.vite/
+
+# Environment variables - VERY IMPORTANT
+# Never commit environment variables, secrets, or API keys
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# ===================================================================
+# Python (`data-processing/` directory)
+# ===================================================================
+# Python virtual environment
+# IMPORTANT: Ignore the entire .venv directory
+data-processing/.venv/
+
+# Compiled Python files
+data-processing/__pycache__/
+data-processing/*.py[cod]
+data-processing/*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# IPython Notebook checkpoints
+data-processing/.ipynb_checkpoints
+
+# pyenv
+# .python-version
+
+# ===================================================================
+# Data Files (Raw and Processed) - IMPORTANT
+# ===================================================================
+# Raw downloaded data files. These are often large and should not be in git.
+# Add a README telling people where to download them from.
+data-processing/*.xlsx
+data-processing/*.xls
+
+# Intermediate or final large CSV files. If your final CSV is small (under 25MB),
+# you can consider checking it in. If it's large, ignore it.
+# It's better to commit the script that generates the file than the file itself.
+data-processing/*.csv
+
+# ===================================================================
+# Go Backend (For when you add it)
+# ===================================================================
+# Compiled executable
+# The name will be the name of your main Go package directory
+# Example: if your main package is in a 'server' directory, the executable might be 'server'
+# Replace 'your_go_executable' with the actual name
+# your_go_executable
+# your_go_executable.exe
+
+# Environment variables file for Go
+backend/.env
+.env
+
+# ===================================================================
+# General Project Files
+# ===================================================================
+# Log files
+*.log
+
+# Local secret configs
+secrets.json

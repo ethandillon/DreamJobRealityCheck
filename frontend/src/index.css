@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Lora:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* src/index.css */
+
+/* ... (your font imports and @tailwind directives) ... */
+
+/* Custom styles for the range slider */
+.custom-range {
+  /* This is a crucial reset that allows us to style the slider from scratch. */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: transparent; /* Remove default background in Firefox */
+}
+
+/* --- Track Styles --- */
+.custom-range::-webkit-slider-runnable-track {
+  height: 10px; /* Make the track thicker */
+  background: #e5e7eb; /* Tailwind's gray-200 */
+  border-radius: 9999px;
+}
+
+.custom-range::-moz-range-track {
+  height: 10px; /* Make the track thicker */
+  background: #e5e7eb; /* Tailwind's gray-200 */
+  border-radius: 9999px;
+}
+
+/* --- Thumb Styles --- */
+.custom-range::-webkit-slider-thumb {
+  -webkit-appearance: none; /* Necessary for WebKit/Blink */
+  height: 24px; /* Thumb height */
+  width: 24px; /* Thumb width */
+  background-color: #4f46e5; /* Tailwind's indigo-600 (a nice purple) */
+  border-radius: 9999px;
+  margin-top: -7px; /* Vertically center the thumb on the track */
+  border: 2px solid white; /* Optional: Adds a nice little border */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.custom-range::-moz-range-thumb {
+  -moz-appearance: none; /* Necessary for Firefox */
+  height: 24px; /* Thumb height */
+  width: 24px; /* Thumb width */
+  background-color: #4f46e5; /* Tailwind's indigo-600 */
+  border-radius: 9999px;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* --- Focus Styles --- */
+.custom-range:focus {
+  outline: none; /* Remove the default browser outline */
+}
+
+.custom-range:focus::-webkit-slider-thumb {
+  /* Add a focus ring */
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.4);
+}
+
+.custom-range:focus::-moz-range-thumb {
+  /* Add a focus ring */
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.4);
+}
