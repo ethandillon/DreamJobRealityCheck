@@ -25,8 +25,24 @@ const ResultDisplay = ({ data }) => {
   const percent = view === 'national' ? data.percentage : (data.percentageRegion ?? data.percentage);
   const percentStr = (() => {
     const num = Number(percent || 0);
-    if (!isFinite(num)) return '0';
-    return num.toPrecision(1);
+    if (!isFinite(num)) return '0.00';
+    // Start with 2 decimals; extend until a non-zero digit appears after the decimal
+    let decimals = 2;
+    let out = num.toFixed(decimals);
+    const hasNonZeroAfterDecimal = (s) => {
+      const i = s.indexOf('.')
+      if (i === -1) return false;
+      return /[1-9]/.test(s.slice(i + 1));
+    };
+    while (decimals < 10 && !hasNonZeroAfterDecimal(out)) {
+      decimals += 1;
+      out = num.toFixed(decimals);
+    }
+    // If still zero after 10 places, collapse to a clean 0
+    if (!hasNonZeroAfterDecimal(out)) {
+      return '0';
+    }
+    return out;
   })();
   const denom = view === 'national' ? data.totalJobs : (data.totalJobsRegion ?? data.totalJobs);
   const toggle = () => setView(v => (v === 'national' ? 'regional' : 'national'));
