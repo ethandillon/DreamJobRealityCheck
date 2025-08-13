@@ -10,32 +10,30 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // This function simulates fetching data from your Go backend
+  // This function fetches data from your Go backend
   const handleCalculate = async (filters) => {
     setIsLoading(true);
     setResultData(null);
     setError(null);
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // In a real app, you would fetch from your Go API here:
-    // const queryParams = new URLSearchParams(filters).toString();
-    // const response = await fetch(`http://localhost:8080/calculate?${queryParams}`);
-    // const data = await response.json();
-    
-    // For now, we'll return some mock data
     try {
-      if (filters.location.toLowerCase() === 'error') {
-        throw new Error("Invalid location provided.");
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (filters.location) queryParams.append('location', filters.location);
+      if (filters.occupation) queryParams.append('occupation', filters.occupation);
+      if (filters.minSalary) queryParams.append('minSalary', filters.minSalary);
+      if (filters.education) queryParams.append('education', filters.education);
+      if (filters.experience) queryParams.append('experience', filters.experience);
+
+      // Fetch from your Go API
+      const response = await fetch(`http://localhost:8080/api/calculate?${queryParams}`);
+      
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
-      const mockData = {
-        percentage: Math.random() * 25, // Random percentage between 0 and 25
-        matchingJobs: Math.floor(Math.random() * 5000) + 1000,
-        totalJobs: 250000,
-        location: filters.location || "the selected area",
-      };
-      setResultData(mockData);
+      
+      const data = await response.json();
+      setResultData(data);
     } catch (e) {
       setError(e.message);
     } finally {
