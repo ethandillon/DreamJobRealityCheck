@@ -38,51 +38,7 @@ const ResultDisplay = ({ data }) => (
       standards.
     </p>
     
-    {/* Salary Information */}
-    {data.salaryInfo && (
-      <div className="mt-6 p-4 bg-gray-800/50 rounded-lg">
-        <h3 className="font-bold text-lg mb-3 text-indigo-300">Salary Information</h3>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-gray-400">Median:</span>
-            <span className="ml-2 font-bold text-green-400">${data.salaryInfo.medianSalary?.toLocaleString()}</span>
-          </div>
-          <div>
-            <span className="text-gray-400">10th Percentile:</span>
-            <span className="ml-2 font-bold text-yellow-400">${data.salaryInfo.pct10Salary?.toLocaleString()}</span>
-          </div>
-          <div>
-            <span className="text-gray-400">25th Percentile:</span>
-            <span className="ml-2 font-bold text-blue-400">${data.salaryInfo.pct25Salary?.toLocaleString()}</span>
-          </div>
-          <div>
-            <span className="text-gray-400">75th Percentile:</span>
-            <span className="ml-2 font-bold text-purple-400">${data.salaryInfo.pct75Salary?.toLocaleString()}</span>
-          </div>
-          <div className="col-span-2">
-            <span className="text-gray-400">90th Percentile:</span>
-            <span className="ml-2 font-bold text-pink-400">${data.salaryInfo.pct90Salary?.toLocaleString()}</span>
-          </div>
-        </div>
-        
-        {/* Salary Requirement Status */}
-        {data.minSalaryMet !== undefined && (
-          <div className="mt-3 pt-3 border-t border-gray-600">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              data.minSalaryMet 
-                ? 'bg-green-900 text-green-300' 
-                : 'bg-red-900 text-red-300'
-            }`}>
-              {data.minSalaryMet ? '✓' : '✗'} 
-              {data.minSalaryMet 
-                ? ' Salary requirement met' 
-                : ' Salary requirement not met'
-              }
-            </span>
-          </div>
-        )}
-      </div>
-    )}
+    {/* Salary Information removed by request */}
   </AnimatedGradientBorder>
 );
 
