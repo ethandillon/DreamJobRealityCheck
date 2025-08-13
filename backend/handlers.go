@@ -126,6 +126,51 @@ func (h *Handlers) OccupationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// LocationsHandler provides a list of unique area titles (locations)
+// Excludes generic U.S.-wide labels
+func (h *Handlers) LocationsHandler(w http.ResponseWriter, r *http.Request) {
+	query := `
+        SELECT DISTINCT area_title
+        FROM career_data
+        WHERE area_title IS NOT NULL
+          AND area_title <> ''
+          AND area_title NOT IN ('U.S.', 'United States', 'USA', 'US')
+        ORDER BY area_title`
+
+	rows, err := h.db.Query(query)
+	if err != nil {
+		log.Printf("Error querying locations: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var locations []string
+	for rows.Next() {
+		var area string
+		if err := rows.Scan(&area); err != nil {
+			log.Printf("Error scanning location: %v", err)
+			continue
+		}
+		locations = append(locations, area)
+	}
+	if err = rows.Err(); err != nil {
+		log.Printf("Error iterating locations: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"locations": locations,
+		"count":     len(locations),
+	}); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
 // HealthHandler provides a simple health check endpoint
 func (h *Handlers) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

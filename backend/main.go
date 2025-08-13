@@ -34,6 +34,7 @@ func main() {
 	api := r.PathPrefix("/api").Subrouter()
 	api.HandleFunc("/calculate", handlers.CalculateHandler).Methods("GET")
 	api.HandleFunc("/occupations", handlers.OccupationsHandler).Methods("GET")
+	api.HandleFunc("/locations", handlers.LocationsHandler).Methods("GET")
 	api.HandleFunc("/health", handlers.HealthHandler).Methods("GET")
 
 	// CORS configuration
