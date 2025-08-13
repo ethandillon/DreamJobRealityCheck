@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import CustomSelect from './CustomSelect'; // The custom dropdown component
 import SearchableDropdown from './SearchableDropdown'; // Import the new component
 
-// Define the options for our dropdowns as constant arrays
+// Define the options for our dropdowns as constant arrays (added "Any")
 const educationOptions = [
+  "Any",
   "No formal education",
   "High school diploma",
   "Associate degree",
@@ -14,11 +15,12 @@ const educationOptions = [
   "Doctoral or professional degree",
 ];
 
+// Match DB strings; include "Any" which removes experience filter
 const experienceOptions = [
+  "Any",
   "None",
-  "Less than 2 years",
-  "2-4 years",
-  "5+ years",
+  "Less than 5 years",
+  "5 years or more",
 ];
 
 // A reusable component for our form rows to keep the code clean
@@ -34,8 +36,8 @@ function Filters({ onCalculate }) {
   const [location, setLocation] = useState('');
   const [occupation, setOccupation] = useState(''); // Add state for occupation
   const [minSalary, setMinSalary] = useState(80000);
-  const [education, setEducation] = useState(educationOptions[3]); // Default to "Bachelor's degree"
-  const [experience, setExperience] = useState(experienceOptions[2]); // Default to "2-4 years"
+  const [education, setEducation] = useState(educationOptions[0]); // Default to "Any"
+  const [experience, setExperience] = useState(experienceOptions[0]); // Default to "Any"
   const [occupations, setOccupations] = useState([]); // State for real occupation data
   const [isLoadingOccupations, setIsLoadingOccupations] = useState(true); // Loading state
   const [locations, setLocations] = useState([]); // State for real locations
@@ -89,7 +91,11 @@ function Filters({ onCalculate }) {
 
   const handleSubmit = (event) => {
     event.preventDefault(); // Prevent full page reload on form submission
-    onCalculate({ location, occupation, minSalary, education, experience });
+    const payload = { location, occupation, minSalary };
+    if (education && education !== 'Any') payload.education = education;
+    // Only include experience if not "Any"
+    if (experience && experience !== 'Any') payload.experience = experience;
+    onCalculate(payload);
   };
 
   return (
