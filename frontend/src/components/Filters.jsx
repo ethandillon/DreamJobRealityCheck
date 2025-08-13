@@ -34,14 +34,17 @@ const FilterRow = ({ label, children }) => (
 function Filters({ onCalculate }) {
   // State hooks to manage the form inputs
   const [location, setLocation] = useState('');
+  const [selectedState, setSelectedState] = useState('');
   const [occupation, setOccupation] = useState(''); // Add state for occupation
   const [minSalary, setMinSalary] = useState(80000);
   const [education, setEducation] = useState(educationOptions[0]); // Default to "Any"
   const [experience, setExperience] = useState(experienceOptions[0]); // Default to "Any"
   const [occupations, setOccupations] = useState([]); // State for real occupation data
   const [isLoadingOccupations, setIsLoadingOccupations] = useState(true); // Loading state
-  const [locations, setLocations] = useState([]); // State for real locations
-  const [isLoadingLocations, setIsLoadingLocations] = useState(true);
+  const [states, setStates] = useState([]); // State list for first dropdown
+  const [isLoadingStates, setIsLoadingStates] = useState(true);
+  const [areas, setAreas] = useState([]); // Areas for the selected state
+  const [isLoadingAreas, setIsLoadingAreas] = useState(false);
 
   // Fetch occupations from the backend API
   useEffect(() => {
@@ -66,28 +69,59 @@ function Filters({ onCalculate }) {
     fetchOccupations();
   }, []);
 
-  // Fetch locations from the backend API
+  // Fetch states on mount
   useEffect(() => {
-    const fetchLocations = async () => {
+    const fetchStates = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/locations');
+        const response = await fetch('http://localhost:8080/api/states');
         if (response.ok) {
           const data = await response.json();
-          setLocations(data.locations || []);
+          setStates(data.states || []);
         } else {
-          console.error('Failed to fetch locations');
-          setLocations([]);
+          console.error('Failed to fetch states');
+          setStates([]);
         }
       } catch (error) {
-        console.error('Error fetching locations:', error);
-        setLocations([]);
+        console.error('Error fetching states:', error);
+        setStates([]);
       } finally {
-        setIsLoadingLocations(false);
+        setIsLoadingStates(false);
       }
     };
-
-    fetchLocations();
+    fetchStates();
   }, []);
+
+  // Fetch areas when a state is selected
+  useEffect(() => {
+    if (!selectedState) {
+      setAreas([]);
+      setLocation('');
+      return;
+    }
+    const controller = new AbortController();
+    const fetchAreas = async () => {
+      setIsLoadingAreas(true);
+      try {
+        const response = await fetch(`http://localhost:8080/api/areas-by-state?state=${encodeURIComponent(selectedState)}`, { signal: controller.signal });
+        if (response.ok) {
+          const data = await response.json();
+          setAreas(data.areas || []);
+        } else {
+          console.error('Failed to fetch areas for state');
+          setAreas([]);
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching areas:', error);
+        }
+        setAreas([]);
+      } finally {
+        setIsLoadingAreas(false);
+      }
+    };
+    fetchAreas();
+    return () => controller.abort();
+  }, [selectedState]);
 
   const handleSubmit = (event) => {
     event.preventDefault(); // Prevent full page reload on form submission
@@ -119,13 +153,23 @@ function Filters({ onCalculate }) {
           />
         </FilterRow>
 
-        <FilterRow label="Location (Area)">
+        <FilterRow label="State">
           <SearchableDropdown
-            options={locations}
+            options={states}
+            value={selectedState}
+            onChange={(val) => { setSelectedState(val); setLocation(''); }}
+            placeholder={isLoadingStates ? 'Loading states...' : 'Select a state'}
+            disabled={isLoadingStates}
+          />
+        </FilterRow>
+
+        <FilterRow label="Area within State">
+          <SearchableDropdown
+            options={areas}
             value={location}
             onChange={setLocation}
-            placeholder={isLoadingLocations ? 'Loading locations...' : 'e.g., California or New York'}
-            disabled={isLoadingLocations}
+            placeholder={!selectedState ? 'Select a state first' : (isLoadingAreas ? 'Loading areas...' : 'Choose statewide, MSA, or non-metro area')}
+            disabled={!selectedState || isLoadingAreas}
           />
         </FilterRow>
 
