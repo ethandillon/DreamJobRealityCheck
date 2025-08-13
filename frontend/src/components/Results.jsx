@@ -23,6 +23,11 @@ import { useState } from 'react';
 const ResultDisplay = ({ data }) => {
   const [view, setView] = useState('national'); // 'national' | 'regional'
   const percent = view === 'national' ? data.percentage : (data.percentageRegion ?? data.percentage);
+  const percentStr = (() => {
+    const num = Number(percent || 0);
+    if (!isFinite(num)) return '0';
+    return num.toPrecision(1);
+  })();
   const denom = view === 'national' ? data.totalJobs : (data.totalJobsRegion ?? data.totalJobs);
   const toggle = () => setView(v => (v === 'national' ? 'regional' : 'national'));
 
@@ -42,7 +47,7 @@ const ResultDisplay = ({ data }) => {
       <img src="/tab%20icon.png" alt="toggle view" className="h-4 w-4 opacity-80 hover:opacity-100" />
     </button>
     <div className="font-primary text-7xl font-bold my-4 text-indigo-400">
-      {Number(percent || 0).toFixed(2)}%
+      {percentStr}%
     </div>
     <p className="font-secondary text-xl">
       An estimated{' '}
