@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // Filters represents the query parameters from the frontend
@@ -388,28 +389,113 @@ func buildQuery(filters Filters) (string, []interface{}) {
 		argCount++
 	}
 
-	// Add education filter
-	if filters.Education != "" {
-		baseQuery += fmt.Sprintf(" AND education = $%d", argCount)
-		args = append(args, filters.Education)
-		argCount++
+	// Add education filter with ladder semantics
+	if filters.Education != "" && filters.Education != "Any" {
+		allowedEdu := getAllowedEducationValues(filters.Education)
+		if len(allowedEdu) == 1 && allowedEdu[0] == "__EXACT__POSTSECONDARY_NONDEGREE__" {
+			// Exact match for non-ladder value
+			baseQuery += fmt.Sprintf(" AND education = $%d", argCount)
+			args = append(args, "Postsecondary nondegree award")
+			argCount++
+		} else if len(allowedEdu) > 0 {
+			placeholders := make([]string, 0, len(allowedEdu))
+			for _, v := range allowedEdu {
+				placeholders = append(placeholders, fmt.Sprintf("$%d", argCount))
+				args = append(args, v)
+				argCount++
+			}
+			baseQuery += fmt.Sprintf(" AND education IN (%s)", strings.Join(placeholders, ", "))
+		}
 	}
 
-	// Add experience filter
-	if filters.Experience != "" {
-		baseQuery += fmt.Sprintf(" AND experience = $%d", argCount)
-		args = append(args, filters.Experience)
-		argCount++
+	// Add experience filter with ladder semantics
+	if filters.Experience != "" && filters.Experience != "Any" {
+		allowedExp := getAllowedExperienceValues(filters.Experience)
+		if len(allowedExp) > 0 {
+			// Detect if the selection implies including rows with NULL experience
+			includesNone := false
+			for _, v := range allowedExp {
+				if strings.EqualFold(v, "None") {
+					includesNone = true
+					break
+				}
+			}
+
+			placeholders := make([]string, 0, len(allowedExp))
+			for _, v := range allowedExp {
+				placeholders = append(placeholders, fmt.Sprintf("$%d", argCount))
+				args = append(args, v)
+				argCount++
+			}
+
+			if includesNone {
+				// Match both NULL experience and explicit 'None' values
+				baseQuery += fmt.Sprintf(" AND (experience IS NULL OR experience IN (%s))", strings.Join(placeholders, ", "))
+			} else {
+				baseQuery += fmt.Sprintf(" AND experience IN (%s)", strings.Join(placeholders, ", "))
+			}
+		}
 	}
 
-	// Add salary filter - check if median salary meets minimum requirement
+	// Add salary filter - inclusive across distribution percentiles
 	if filters.MinSalary > 0 {
-		baseQuery += fmt.Sprintf(" AND a_median >= $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND (a_median >= $%d OR a_pct75 >= $%d OR a_pct90 >= $%d)", argCount, argCount, argCount)
 		args = append(args, filters.MinSalary)
 		argCount++
 	}
 
 	return baseQuery, args
+}
+
+// getAllowedEducationValues maps a UI-selected minimum education to DB values (ladder semantics)
+// Returns special marker ["__EXACT__POSTSECONDARY_NONDEGREE__"] when the selection is the non-ladder value
+func getAllowedEducationValues(uiValue string) []string {
+	if uiValue == "Postsecondary nondegree award" {
+		return []string{"__EXACT__POSTSECONDARY_NONDEGREE__"}
+	}
+	// Map UI labels to DB labels for the ladder
+	ladderDB := []string{
+		"No formal educational credential",
+		"High school diploma or equivalent",
+		"Associate degree",
+		"Bachelor's degree",
+		"Master's degree",
+		"Doctoral or professional degree",
+	}
+	// Normalize a couple common UI variants
+	uiNorm := strings.ToLower(uiValue)
+	switch uiNorm {
+	case "no formal education":
+		uiValue = "No formal educational credential"
+	case "high school diploma":
+		uiValue = "High school diploma or equivalent"
+	}
+	// Find index in ladder
+	idx := -1
+	for i, v := range ladderDB {
+		if v == uiValue {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return nil
+	}
+	return ladderDB[:idx+1]
+}
+
+// getAllowedExperienceValues maps a UI-selected experience to DB values (ladder semantics)
+func getAllowedExperienceValues(uiValue string) []string {
+	switch uiValue {
+	case "None":
+		return []string{"None"}
+	case "Less than 5 years":
+		return []string{"None", "Less than 5 years"}
+	case "5 years or more":
+		return []string{"None", "Less than 5 years", "5 years or more"}
+	default:
+		return nil
+	}
 }
 
 // parseMinSalary converts the minSalary string to an integer
