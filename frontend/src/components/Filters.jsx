@@ -1,9 +1,8 @@
 // src/components/Filters.jsx
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import CustomSelect from './CustomSelect'; // The custom dropdown component
 import SearchableDropdown from './SearchableDropdown'; // Import the new component
-import { mockOccupations } from '../mockOccupations'; // Import our mock data
 
 // Define the options for our dropdowns as constant arrays
 const educationOptions = [
@@ -37,6 +36,31 @@ function Filters({ onCalculate }) {
   const [minSalary, setMinSalary] = useState(80000);
   const [education, setEducation] = useState(educationOptions[3]); // Default to "Bachelor's degree"
   const [experience, setExperience] = useState(experienceOptions[2]); // Default to "2-4 years"
+  const [occupations, setOccupations] = useState([]); // State for real occupation data
+  const [isLoadingOccupations, setIsLoadingOccupations] = useState(true); // Loading state
+
+  // Fetch occupations from the backend API
+  useEffect(() => {
+    const fetchOccupations = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/occupations');
+        if (response.ok) {
+          const data = await response.json();
+          setOccupations(data.occupations || []);
+        } else {
+          console.error('Failed to fetch occupations');
+          setOccupations([]);
+        }
+      } catch (error) {
+        console.error('Error fetching occupations:', error);
+        setOccupations([]);
+      } finally {
+        setIsLoadingOccupations(false);
+      }
+    };
+
+    fetchOccupations();
+  }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault(); // Prevent full page reload on form submission
@@ -56,10 +80,11 @@ function Filters({ onCalculate }) {
         <FilterRow label="Occupation / Field">
           {/* Use our new searchable dropdown component */}
           <SearchableDropdown
-            options={mockOccupations}
+            options={occupations}
             value={occupation}
             onChange={setOccupation}
-            placeholder="e.g., Software Developer"
+            placeholder={isLoadingOccupations ? "Loading occupations..." : "e.g., Software Developer"}
+            disabled={isLoadingOccupations}
           />
         </FilterRow>
 
