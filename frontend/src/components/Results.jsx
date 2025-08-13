@@ -18,29 +18,42 @@ const LoadingSpinner = () => (
     </div>
   );
 
-const ResultDisplay = ({ data }) => (
+import { useState } from 'react';
+
+const ResultDisplay = ({ data }) => {
+  const [view, setView] = useState('national'); // 'national' | 'regional'
+  const percent = view === 'national' ? data.percentage : (data.percentageRegion ?? data.percentage);
+  const denom = view === 'national' ? data.totalJobs : (data.totalJobsRegion ?? data.totalJobs);
+  const toggle = () => setView(v => (v === 'national' ? 'regional' : 'national'));
+
+  return (
   // 2. Replace the old div with our AnimatedGradientBorder component
   <AnimatedGradientBorder
     // 3. Move all layout and styling classes here
-    className="text-center text-white p-10 rounded-xl shadow-lg backdrop-blur-sm max-w-2xl"
+    className="relative text-center text-white p-10 rounded-xl shadow-lg backdrop-blur-sm max-w-2xl"
   >
-    {/* The inner content remains exactly the same */}
-    <p className="font-secondary text-gray-400 text-lg">
-      Based on your criteria for jobs in {data.location}:
-    </p>
+    {/* Subtle toggle button in the top-right */}
+    <button
+      onClick={toggle}
+      className="absolute top-3 right-3 p-0 m-0 bg-transparent cursor-pointer"
+      aria-label="Toggle national/regional view"
+      title={view === 'national' ? 'Switch to regional view' : 'Switch to national view'}
+    >
+      <img src="/tab%20icon.png" alt="toggle view" className="h-4 w-4 opacity-80 hover:opacity-100" />
+    </button>
     <div className="font-primary text-7xl font-bold my-4 text-indigo-400">
-      {data.percentage.toFixed(2)}%
+      {Number(percent || 0).toFixed(2)}%
     </div>
     <p className="font-secondary text-xl">
       An estimated{' '}
       <span className="font-bold">{data.matchingJobs.toLocaleString()}</span> out of{' '}
-      <span className="font-bold">{data.totalJobs.toLocaleString()}</span> jobs meet your
-      standards.
+      <span className="font-bold">{Number(denom || 0).toLocaleString()}</span> jobs in {view === 'national' ? 'the U.S.' : data.location} meet your standards.
     </p>
     
     {/* Salary Information removed by request */}
   </AnimatedGradientBorder>
-);
+  );
+};
 
 const ErrorDisplay = ({ message }) => (
     <div className="text-center text-red-400 border border-red-400/50 p-6 rounded-lg">

@@ -21,12 +21,14 @@ type Filters struct {
 
 // CalculationResult represents the response data
 type CalculationResult struct {
-	Percentage   float64    `json:"percentage"`
-	MatchingJobs int        `json:"matchingJobs"`
-	TotalJobs    int        `json:"totalJobs"`
-	Location     string     `json:"location"`
-	MinSalaryMet bool       `json:"minSalaryMet"`
-	SalaryInfo   SalaryInfo `json:"salaryInfo"`
+	Percentage       float64    `json:"percentage"`
+	PercentageRegion float64    `json:"percentageRegion"`
+	MatchingJobs     int        `json:"matchingJobs"`
+	TotalJobs        int        `json:"totalJobs"`
+	TotalJobsRegion  int        `json:"totalJobsRegion"`
+	Location         string     `json:"location"`
+	MinSalaryMet     bool       `json:"minSalaryMet"`
+	SalaryInfo       SalaryInfo `json:"salaryInfo"`
 }
 
 // SalaryInfo provides detailed salary information
@@ -327,10 +329,23 @@ func (h *Handlers) calculateJobOpportunities(filters Filters) (*CalculationResul
 		return nil, fmt.Errorf("error querying total jobs: %v", err)
 	}
 
+	// Get total jobs count for the selected region/location only (denominator for regional view)
+	var totalJobsRegion int
+	err = h.db.QueryRow("SELECT SUM(tot_emp) FROM career_data WHERE area_title = $1", filters.Location).Scan(&totalJobsRegion)
+	if err != nil {
+		return nil, fmt.Errorf("error querying regional total jobs: %v", err)
+	}
+
 	// Calculate percentage
 	var percentage float64
 	if totalJobs > 0 && matchingJobs.Valid {
 		percentage = (matchingJobs.Float64 / float64(totalJobs)) * 100
+	}
+
+	// Regional percentage
+	var percentageRegion float64
+	if totalJobsRegion > 0 && matchingJobs.Valid {
+		percentageRegion = (matchingJobs.Float64 / float64(totalJobsRegion)) * 100
 	}
 
 	// Check if minimum salary requirement is met
@@ -349,12 +364,14 @@ func (h *Handlers) calculateJobOpportunities(filters Filters) (*CalculationResul
 	}
 
 	return &CalculationResult{
-		Percentage:   percentage,
-		MatchingJobs: int(matchingJobs.Float64),
-		TotalJobs:    totalJobs,
-		Location:     filters.Location,
-		MinSalaryMet: minSalaryMet,
-		SalaryInfo:   salaryInfo,
+		Percentage:       percentage,
+		PercentageRegion: percentageRegion,
+		MatchingJobs:     int(matchingJobs.Float64),
+		TotalJobs:        totalJobs,
+		TotalJobsRegion:  totalJobsRegion,
+		Location:         filters.Location,
+		MinSalaryMet:     minSalaryMet,
+		SalaryInfo:       salaryInfo,
 	}, nil
 }
 
