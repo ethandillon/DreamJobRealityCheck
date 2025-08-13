@@ -28,20 +28,20 @@ go mod tidy
 
 ### 2. Database Setup
 
-Since you already have a PostgreSQL database set up, ensure your database has a `jobs` table with the following structure (based on your data schema):
+Since you already have a PostgreSQL database set up, ensure your database has a `career_data` table with the following structure:
 
 - `id`: Primary key (SERIAL)
-- `AREA_TITLE`: Location/area (VARCHAR)
-- `OCC_CODE`: Occupation code (VARCHAR)
-- `OCC_TITLE`: Occupation title (VARCHAR)
-- `Education`: Required education level (VARCHAR)
-- `Experience`: Required experience level (VARCHAR)
-- `TOT_EMP`: Total employment count (INTEGER)
-- `A_MEDIAN`: Median annual salary (INTEGER)
-- `A_PCT10`: 10th percentile salary (INTEGER)
-- `A_PCT25`: 25th percentile salary (INTEGER)
-- `A_PCT75`: 75th percentile salary (INTEGER)
-- `A_PCT90`: 90th percentile salary (INTEGER)
+- `area_title`: Location/area (VARCHAR)
+- `occ_code`: Occupation code (VARCHAR)
+- `occ_title`: Occupation title (VARCHAR)
+- `education`: Required education level (VARCHAR)
+- `experience`: Required experience level (VARCHAR)
+- `tot_emp`: Total employment count (NUMERIC)
+- `a_median`: Median annual salary (NUMERIC)
+- `a_pct10`: 10th percentile salary (NUMERIC)
+- `a_pct25`: 25th percentile salary (NUMERIC)
+- `a_pct75`: 75th percentile salary (NUMERIC)
+- `a_pct90`: 90th percentile salary (NUMERIC)
 
 ### 3. Environment Configuration
 

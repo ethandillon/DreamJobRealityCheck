@@ -83,6 +83,49 @@ func (h *Handlers) CalculateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// OccupationsHandler provides a list of unique occupation titles
+func (h *Handlers) OccupationsHandler(w http.ResponseWriter, r *http.Request) {
+	// Query to get unique occupation titles
+	query := "SELECT DISTINCT occ_title FROM career_data WHERE occ_title IS NOT NULL AND occ_title != '' ORDER BY occ_title"
+
+	rows, err := h.db.Query(query)
+	if err != nil {
+		log.Printf("Error querying occupations: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var occupations []string
+	for rows.Next() {
+		var occTitle string
+		if err := rows.Scan(&occTitle); err != nil {
+			log.Printf("Error scanning occupation: %v", err)
+			continue
+		}
+		occupations = append(occupations, occTitle)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("Error iterating occupations: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Set response headers
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Encode and send response
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"occupations": occupations,
+		"count":       len(occupations),
+	}); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
 // HealthHandler provides a simple health check endpoint
 func (h *Handlers) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -96,9 +139,9 @@ func (h *Handlers) calculateJobOpportunities(filters Filters) (*CalculationResul
 	query, args := buildQuery(filters)
 
 	// Execute the query to get matching jobs count and salary info
-	var matchingJobs int
-	var medianSalary, pct10Salary, pct25Salary, pct75Salary, pct90Salary sql.NullInt64
-	var totalEmp sql.NullInt64
+	var matchingJobs sql.NullFloat64
+	var medianSalary, pct10Salary, pct25Salary, pct75Salary, pct90Salary sql.NullFloat64
+	var totalEmp sql.NullFloat64
 
 	err := h.db.QueryRow(query, args...).Scan(
 		&matchingJobs, &medianSalary, &pct10Salary, &pct25Salary, &pct75Salary, &pct90Salary, &totalEmp,
@@ -109,35 +152,35 @@ func (h *Handlers) calculateJobOpportunities(filters Filters) (*CalculationResul
 
 	// Get total jobs count across all locations
 	var totalJobs int
-	err = h.db.QueryRow("SELECT SUM(TOT_EMP) FROM jobs").Scan(&totalJobs)
+	err = h.db.QueryRow("SELECT SUM(tot_emp) FROM career_data").Scan(&totalJobs)
 	if err != nil {
 		return nil, fmt.Errorf("error querying total jobs: %v", err)
 	}
 
 	// Calculate percentage
 	var percentage float64
-	if totalJobs > 0 {
-		percentage = (float64(matchingJobs) / float64(totalJobs)) * 100
+	if totalJobs > 0 && matchingJobs.Valid {
+		percentage = (matchingJobs.Float64 / float64(totalJobs)) * 100
 	}
 
 	// Check if minimum salary requirement is met
 	minSalaryMet := false
 	if medianSalary.Valid && filters.MinSalary > 0 {
-		minSalaryMet = medianSalary.Int64 >= int64(filters.MinSalary)
+		minSalaryMet = medianSalary.Float64 >= float64(filters.MinSalary)
 	}
 
 	// Build salary info
 	salaryInfo := SalaryInfo{
-		MedianSalary: int(medianSalary.Int64),
-		Pct10Salary:  int(pct10Salary.Int64),
-		Pct25Salary:  int(pct25Salary.Int64),
-		Pct75Salary:  int(pct75Salary.Int64),
-		Pct90Salary:  int(pct90Salary.Int64),
+		MedianSalary: int(medianSalary.Float64),
+		Pct10Salary:  int(pct10Salary.Float64),
+		Pct25Salary:  int(pct25Salary.Float64),
+		Pct75Salary:  int(pct75Salary.Float64),
+		Pct90Salary:  int(pct90Salary.Float64),
 	}
 
 	return &CalculationResult{
 		Percentage:   percentage,
-		MatchingJobs: matchingJobs,
+		MatchingJobs: int(matchingJobs.Float64),
 		TotalJobs:    totalJobs,
 		Location:     filters.Location,
 		MinSalaryMet: minSalaryMet,
@@ -149,14 +192,14 @@ func (h *Handlers) calculateJobOpportunities(filters Filters) (*CalculationResul
 func buildQuery(filters Filters) (string, []interface{}) {
 	baseQuery := `
 		SELECT 
-			SUM(TOT_EMP) as matching_jobs,
-			AVG(A_MEDIAN) as median_salary,
-			AVG(A_PCT10) as pct10_salary,
-			AVG(A_PCT25) as pct25_salary,
-			AVG(A_PCT75) as pct75_salary,
-			AVG(A_PCT90) as pct90_salary,
-			SUM(TOT_EMP) as total_emp
-		FROM jobs 
+			SUM(tot_emp) as matching_jobs,
+			AVG(a_median) as median_salary,
+			AVG(a_pct10) as pct10_salary,
+			AVG(a_pct25) as pct25_salary,
+			AVG(a_pct75) as pct75_salary,
+			AVG(a_pct90) as pct90_salary,
+			SUM(tot_emp) as total_emp
+		FROM career_data 
 		WHERE 1=1`
 
 	var args []interface{}
@@ -164,35 +207,35 @@ func buildQuery(filters Filters) (string, []interface{}) {
 
 	// Add location filter
 	if filters.Location != "" {
-		baseQuery += fmt.Sprintf(" AND AREA_TITLE ILIKE $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND area_title ILIKE $%d", argCount)
 		args = append(args, "%"+filters.Location+"%")
 		argCount++
 	}
 
 	// Add occupation filter
 	if filters.Occupation != "" {
-		baseQuery += fmt.Sprintf(" AND OCC_TITLE ILIKE $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND occ_title ILIKE $%d", argCount)
 		args = append(args, "%"+filters.Occupation+"%")
 		argCount++
 	}
 
 	// Add education filter
 	if filters.Education != "" {
-		baseQuery += fmt.Sprintf(" AND Education = $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND education = $%d", argCount)
 		args = append(args, filters.Education)
 		argCount++
 	}
 
 	// Add experience filter
 	if filters.Experience != "" {
-		baseQuery += fmt.Sprintf(" AND Experience = $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND experience = $%d", argCount)
 		args = append(args, filters.Experience)
 		argCount++
 	}
 
 	// Add salary filter - check if median salary meets minimum requirement
 	if filters.MinSalary > 0 {
-		baseQuery += fmt.Sprintf(" AND A_MEDIAN >= $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND a_median >= $%d", argCount)
 		args = append(args, filters.MinSalary)
 		argCount++
 	}
