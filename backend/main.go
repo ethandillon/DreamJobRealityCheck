@@ -35,6 +35,8 @@ func main() {
 	api.HandleFunc("/calculate", handlers.CalculateHandler).Methods("GET")
 	api.HandleFunc("/occupations", handlers.OccupationsHandler).Methods("GET")
 	api.HandleFunc("/locations", handlers.LocationsHandler).Methods("GET")
+	api.HandleFunc("/states", handlers.StatesHandler).Methods("GET")
+	api.HandleFunc("/areas-by-state", handlers.AreasByStateHandler).Methods("GET")
 	api.HandleFunc("/health", handlers.HealthHandler).Methods("GET")
 
 	// CORS configuration

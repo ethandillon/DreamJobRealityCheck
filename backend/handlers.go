@@ -171,6 +171,130 @@ func (h *Handlers) LocationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// StatesHandler returns distinct state-level area titles
+func (h *Handlers) StatesHandler(w http.ResponseWriter, r *http.Request) {
+	query := `
+        SELECT DISTINCT area_title
+        FROM career_data
+        WHERE area_title IS NOT NULL
+          AND area_title <> ''
+          AND area_title NOT ILIKE '%,%'
+          AND area_title NOT ILIKE '%nonmetropolitan area%'
+          AND area_title NOT IN ('U.S.', 'United States', 'USA', 'US')
+        ORDER BY area_title`
+
+	rows, err := h.db.Query(query)
+	if err != nil {
+		log.Printf("Error querying states: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var states []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			log.Printf("Error scanning state: %v", err)
+			continue
+		}
+		states = append(states, s)
+	}
+	if err = rows.Err(); err != nil {
+		log.Printf("Error iterating states: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"states": states,
+		"count":  len(states),
+	}); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// AreasByStateHandler returns all area titles relevant to a given state
+func (h *Handlers) AreasByStateHandler(w http.ResponseWriter, r *http.Request) {
+	state := r.URL.Query().Get("state")
+	if state == "" {
+		http.Error(w, "Missing state parameter", http.StatusBadRequest)
+		return
+	}
+	abbr := stateNameToAbbr(state)
+	// Build patterns:
+	// 1) exact state name
+	// 2) MSAs that have ", {ABBR}" or ", {ABBR}-" after the comma
+	// 3) nonmetropolitan areas containing the state name
+	query := `
+        SELECT DISTINCT area_title
+        FROM career_data
+        WHERE area_title = $1
+           OR area_title ILIKE '%' || $2 || '%'
+           OR area_title ILIKE '%' || $3 || '%'
+        ORDER BY area_title`
+	commaPattern := ", " + abbr // matches ", GA" including cross-state like ", GA-SC"
+	nonMetroPattern := state + " nonmetropolitan area"
+
+	rows, err := h.db.Query(query, state, commaPattern, nonMetroPattern)
+	if err != nil {
+		log.Printf("Error querying areas by state: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var areas []string
+	for rows.Next() {
+		var a string
+		if err := rows.Scan(&a); err != nil {
+			log.Printf("Error scanning area: %v", err)
+			continue
+		}
+		areas = append(areas, a)
+	}
+	if err = rows.Err(); err != nil {
+		log.Printf("Error iterating areas: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"areas": areas,
+		"count": len(areas),
+	}); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// stateNameToAbbr maps state full names to USPS abbreviations
+func stateNameToAbbr(state string) string {
+	m := map[string]string{
+		"Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
+		"Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "District of Columbia": "DC",
+		"Florida": "FL", "Georgia": "GA", "Hawaii": "HI", "Idaho": "ID", "Illinois": "IL",
+		"Indiana": "IN", "Iowa": "IA", "Kansas": "KS", "Kentucky": "KY", "Louisiana": "LA",
+		"Maine": "ME", "Maryland": "MD", "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN",
+		"Mississippi": "MS", "Missouri": "MO", "Montana": "MT", "Nebraska": "NE", "Nevada": "NV",
+		"New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY",
+		"North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK", "Oregon": "OR",
+		"Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD",
+		"Tennessee": "TN", "Texas": "TX", "Utah": "UT", "Vermont": "VT", "Virginia": "VA",
+		"Washington": "WA", "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY",
+		"Puerto Rico": "PR", "Guam": "GU", "Virgin Islands": "VI",
+	}
+	if v, ok := m[state]; ok {
+		return v
+	}
+	return state // fallback
+}
+
 // HealthHandler provides a simple health check endpoint
 func (h *Handlers) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
