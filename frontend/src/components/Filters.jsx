@@ -31,13 +31,15 @@ const FilterRow = ({ label, children }) => (
 
 function Filters({ onCalculate }) {
   // State hooks to manage the form inputs
-  const [location, setLocation] = useState('San Francisco, CA');
+  const [location, setLocation] = useState('');
   const [occupation, setOccupation] = useState(''); // Add state for occupation
   const [minSalary, setMinSalary] = useState(80000);
   const [education, setEducation] = useState(educationOptions[3]); // Default to "Bachelor's degree"
   const [experience, setExperience] = useState(experienceOptions[2]); // Default to "2-4 years"
   const [occupations, setOccupations] = useState([]); // State for real occupation data
   const [isLoadingOccupations, setIsLoadingOccupations] = useState(true); // Loading state
+  const [locations, setLocations] = useState([]); // State for real locations
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true);
 
   // Fetch occupations from the backend API
   useEffect(() => {
@@ -60,6 +62,29 @@ function Filters({ onCalculate }) {
     };
 
     fetchOccupations();
+  }, []);
+
+  // Fetch locations from the backend API
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/locations');
+        if (response.ok) {
+          const data = await response.json();
+          setLocations(data.locations || []);
+        } else {
+          console.error('Failed to fetch locations');
+          setLocations([]);
+        }
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+        setLocations([]);
+      } finally {
+        setIsLoadingLocations(false);
+      }
+    };
+
+    fetchLocations();
   }, []);
 
   const handleSubmit = (event) => {
@@ -88,12 +113,13 @@ function Filters({ onCalculate }) {
           />
         </FilterRow>
 
-        <FilterRow label="Location (City, State)">
-          <input
-            type="text"
+        <FilterRow label="Location (Area)">
+          <SearchableDropdown
+            options={locations}
             value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            onChange={setLocation}
+            placeholder={isLoadingLocations ? 'Loading locations...' : 'e.g., California or New York'}
+            disabled={isLoadingLocations}
           />
         </FilterRow>
 
