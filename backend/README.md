@@ -173,6 +173,28 @@ curl "http://localhost:8080/api/calculate?location=San Francisco, CA&occupation=
 
 ## Deployment
 
+### Fly.io (container deploy)
+
+1. Install flyctl and login
+```bash
+brew install flyctl   # macOS
+fly auth login
+```
+2. From `backend/`, create app (or edit `fly.toml` directly)
+```bash
+fly launch --no-deploy
+```
+3. Configure secrets (DB credentials, CORS)
+```bash
+fly secrets set DB_HOST=... DB_PORT=5432 DB_USER=... DB_PASSWORD=... DB_NAME=... DB_SSLMODE=require CORS_ORIGIN=https://dream-job-reality-check.vercel.app
+```
+4. Deploy
+```bash
+fly deploy
+```
+
+Health check: `/api/health` on port 8080. See `fly.toml`.
+
 1. Build the binary:
 ```bash
 go build -o dream-job-calculator .
