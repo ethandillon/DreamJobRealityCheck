@@ -26,7 +26,8 @@ function App() {
       if (filters.experience) queryParams.append('experience', filters.experience);
 
       // Fetch from your Go API
-      const response = await fetch(`http://localhost:8080/api/calculate?${queryParams}`);
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const response = await fetch(`${apiBase}/api/calculate?${queryParams}`);
       
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
@@ -42,14 +43,14 @@ function App() {
   };
 
   return (
-    <main className="flex min-h-screen bg-gray-900 font-secondary text-white">
+    <main className="flex flex-col md:flex-row min-h-screen bg-gray-900 font-secondary text-white">
       {/* Left Panel: Filters */}
-      <div className="w-full max-w-md bg-white p-8 shadow-2xl">
+      <div className="w-full md:max-w-md bg-white p-8 shadow-2xl">
         <Filters onCalculate={handleCalculate} />
       </div>
 
       {/* Right Panel: Results */}
-      <div className="flex-grow flex items-center justify-center p-8">
+      <div className="flex w-full md:flex-grow items-center justify-center p-8">
         <Results isLoading={isLoading} data={resultData} error={error} />
       </div>
     </main>

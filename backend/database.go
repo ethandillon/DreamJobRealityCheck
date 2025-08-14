@@ -33,6 +33,10 @@ func initDB() (*sql.DB, error) {
 	}
 
 	log.Println("Successfully connected to database")
+	// Basic pooling defaults; override via env in future if needed
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(0)
 	return db, nil
 }
 

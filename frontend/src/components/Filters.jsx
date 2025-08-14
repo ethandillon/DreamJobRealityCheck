@@ -49,8 +49,9 @@ function Filters({ onCalculate }) {
   // Fetch occupations from the backend API
   useEffect(() => {
     const fetchOccupations = async () => {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
       try {
-        const response = await fetch('http://localhost:8080/api/occupations');
+        const response = await fetch(`${apiBase}/api/occupations`);
         if (response.ok) {
           const data = await response.json();
           setOccupations(data.occupations || []);
@@ -72,8 +73,9 @@ function Filters({ onCalculate }) {
   // Fetch states on mount
   useEffect(() => {
     const fetchStates = async () => {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
       try {
-        const response = await fetch('http://localhost:8080/api/states');
+        const response = await fetch(`${apiBase}/api/states`);
         if (response.ok) {
           const data = await response.json();
           setStates(data.states || []);
@@ -100,9 +102,10 @@ function Filters({ onCalculate }) {
     }
     const controller = new AbortController();
     const fetchAreas = async () => {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
       setIsLoadingAreas(true);
       try {
-        const response = await fetch(`http://localhost:8080/api/areas-by-state?state=${encodeURIComponent(selectedState)}`, { signal: controller.signal });
+        const response = await fetch(`${apiBase}/api/areas-by-state?state=${encodeURIComponent(selectedState)}`, { signal: controller.signal });
         if (response.ok) {
           const data = await response.json();
           setAreas(data.areas || []);
@@ -129,13 +132,16 @@ function Filters({ onCalculate }) {
     if (education && education !== 'Any') payload.education = education;
     // Only include experience if not "Any"
     if (experience && experience !== 'Any') payload.experience = experience;
+    if (!isFormValid) return;
     onCalculate(payload);
   };
 
+  const isFormValid = Boolean(selectedState && location && occupation);
+
   return (
     <div className="flex flex-col h-full text-gray-800">
-      <h1 className="font-primary text-4xl font-bold mb-2">
-        Career Opportunity Calculator
+      <h1 className="font-primary text-5xl font-bold mb-2">
+        Dream Job Reality Check
       </h1>
       <p className="text-gray-500 mb-8">
         What percentage of jobs in the United States meet your standards?
@@ -206,7 +212,11 @@ function Filters({ onCalculate }) {
       <div className="mt-auto pt-4">
         <button
           onClick={handleSubmit}
-          className="w-full bg-gray-900 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors duration-300 flex items-center justify-between"
+          disabled={!isFormValid}
+          aria-disabled={!isFormValid}
+          className={`w-full bg-gray-900 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-between ${
+            isFormValid ? 'hover:bg-gray-700 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+          }`}
         >
           <span>Let's Find Out</span>
           <span>&rarr;</span>
