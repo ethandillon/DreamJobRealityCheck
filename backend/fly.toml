@@ -1,4 +1,4 @@
-app = "dream-job-reality-check-api"
+app = "dream-job-reality-check-api-1"
 primary_region = "atl"
 
 [build]
