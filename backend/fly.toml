@@ -1,1 +1,24 @@
-app = "dream-job-reality-check-api"\nprimary_region = "atl"\n\n[build]\n  dockerfile = "Dockerfile"\n\n[env]\n  SERVER_PORT = "8080"\n  CORS_ORIGIN = "https://dream-job-reality-check.vercel.app"\n\n[http_service]\n  internal_port = 8080\n  force_https = true\n  auto_stop_machines = false\n  auto_start_machines = true\n  min_machines_running = 1\n  processes = ["app"]\n\n  [[http_service.checks]]\n    interval = "10s"\n    timeout = "2s"\n    grace_period = "5s"\n    method = "GET"\n    path = "/api/health"\n
+app = "dream-job-reality-check-api"
+primary_region = "atl"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SERVER_PORT = "8080"
+  CORS_ORIGIN = "https://dream-job-reality-check.vercel.app"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "10s"
+    timeout = "2s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/api/health"
