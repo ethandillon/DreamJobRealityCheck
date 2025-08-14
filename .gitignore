@@ -47,6 +47,7 @@ frontend/.vite/
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
+frontend/.env.production
 
 # ===================================================================
 # Python (`data-processing/` directory)
