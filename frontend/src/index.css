@@ -35,8 +35,8 @@
   -webkit-appearance: none; /* Necessary for WebKit/Blink */
   height: 24px; /* Thumb height */
   width: 24px; /* Thumb width */
-  background-color: #4f46e5; /* Tailwind's indigo-600 (a nice purple) */
-  border-radius: 9999px;
+  background-color: #818cf8; /* Tailwind's indigo-600 (a nice purple) */
+  border-radius: 5px;
   margin-top: -7px; /* Vertically center the thumb on the track */
   border: 2px solid white; /* Optional: Adds a nice little border */
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
