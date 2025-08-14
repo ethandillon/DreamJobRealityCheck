@@ -1,0 +1,14 @@
+{
+  "name": "dream-job-reality-check-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dream Job vs Reality Calculator Monorepo",
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "build": "cd frontend && npm run build",
+    "dev": "cd frontend && npm run dev",
+    "install:frontend": "cd frontend && npm install"
+  }
+}
