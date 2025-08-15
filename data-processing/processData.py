@@ -20,19 +20,18 @@ else:
     df = df[df['I_GROUP'] == 'cross-industry']
     print(f"Row count after 'cross-industry' filter: {len(df)}")
     
-    # Level 2 Filter: Get detailed occupations, not broad groups
-    df = df[df['O_GROUP'] == 'detailed']
-    print(f"Row count after 'detailed' occupation filter: {len(df)}")
-    
-    # --- THIS IS THE FINAL, GUARANTEED FIX ---
-    # Level 3 Safety Net: Programmatically remove any remaining duplicates
-    # based on the combination of area and occupation code.
-    # This will solve the "Guam" issue and any other rare edge cases.
+    # --- THIS IS THE CRITICAL CHANGE ---
+    # We now keep EITHER the detailed occupations OR the single 'Total' summary row.
+    # The '|' symbol means OR in pandas.
+    df = df[(df['O_GROUP'] == 'detailed') | (df['OCC_CODE'] == '00-0000')]
+    print(f"Row count after 'detailed' OR 'Total' filter: {len(df)}")
+    # --- END OF CHANGE ---
+
+    # Safety Net: Programmatically remove any remaining duplicates
     initial_rows = len(df)
     df = df.drop_duplicates(subset=['AREA_TITLE', 'OCC_CODE'], keep='first')
     final_rows = len(df)
     print(f"Dropped {initial_rows - final_rows} additional duplicate row(s) with the final safety net.")
-    # --- END OF NEW FIX ---
 
     columns_to_keep = [
         'AREA_TITLE',
@@ -53,6 +52,8 @@ else:
         df_cleaned[col] = pd.to_numeric(df_cleaned[col], errors='coerce')
         df_cleaned[col] = df_cleaned[col].astype('Int64')
 
+    # We need to adjust the dropna logic slightly, because the 'Total' row has no salary percentiles.
+    # We will only drop rows if they are missing BOTH employment and median salary.
     df_cleaned = df_cleaned.dropna(subset=['TOT_EMP', 'A_MEDIAN'])
 
     print("Data cleaned. Saving to a new, faster file...")
