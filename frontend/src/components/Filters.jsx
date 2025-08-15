@@ -9,6 +9,7 @@ const educationOptions = [
   "Any",
   "No formal education",
   "High school diploma",
+  "Postsecondary nondegree award",
   "Associate degree",
   "Bachelor's degree",
   "Master's degree",
