@@ -66,3 +66,30 @@
   /* Add a focus ring */
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.4);
 }
+
+/* Data Info Modal */
+.data-info-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55); /* gray-900/55 */
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
+  padding: 1.5rem; /* Uniform padding */
+  z-index: 50;
+}
+.data-info-modal {
+  width: 100%;
+  max-width: 640px;
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1.5rem 1.5rem 1.25rem;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.25), 0 8px 10px -6px rgba(0,0,0,0.2);
+  border: 1px solid #e5e7eb; /* gray-200 */
+  position: relative;
+}
+@media (prefers-color-scheme: dark) {
+  .data-info-modal { background:#1f2937; color:#f9fafb; border-color:#374151; }
+  .data-info-modal button { color:#f9fafb; }
+}

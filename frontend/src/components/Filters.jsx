@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import CustomSelect from './CustomSelect'; // The custom dropdown component
 import SearchableDropdown from './SearchableDropdown'; // Import the new component
+import DataInfoModal from './DataInfoModal';
 
 // Define the options for our dropdowns as constant arrays (added "Any")
 const educationOptions = [
@@ -46,6 +47,7 @@ function Filters({ onCalculate }) {
   const [isLoadingStates, setIsLoadingStates] = useState(true);
   const [areas, setAreas] = useState([]); // Areas for the selected state
   const [isLoadingAreas, setIsLoadingAreas] = useState(false);
+  const [showDataInfo, setShowDataInfo] = useState(false);
 
   // Fetch occupations from the backend API
   useEffect(() => {
@@ -223,9 +225,12 @@ function Filters({ onCalculate }) {
           <span>&rarr;</span>
         </button>
         <p className="text-xs text-gray-400 mt-2 text-center">
-          Calculated using U.S. Bureau of Labor Statistics Data
+          <button type="button" onClick={() => setShowDataInfo(true)} className="underline hover:text-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded">
+            Calculated using U.S. Bureau of Labor Statistics Data
+          </button>
         </p>
       </div>
+      <DataInfoModal open={showDataInfo} onClose={() => setShowDataInfo(false)} />
     </div>
   );
 }
