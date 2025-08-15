@@ -322,9 +322,12 @@ func (h *Handlers) calculateJobOpportunities(filters Filters) (*CalculationResul
 		return nil, fmt.Errorf("error querying matching jobs: %v", err)
 	}
 
-	// Get total jobs count across all locations
+	// Get total jobs count across all locations using the NATIONAL aggregated row for occ_code '00-0000'.
+	// Some datasets include many '00-0000' rows (one per area). We want the SINGLE national total, which should have the
+	// largest tot_emp for that occ_code. Ordering by tot_emp DESC ensures we pick the correct national aggregate even if
+	// area_title filters (e.g., 'U.S.') vary or were transformed during preprocessing.
 	var totalJobs int
-	err = h.db.QueryRow("SELECT SUM(tot_emp) FROM career_data").Scan(&totalJobs)
+	err = h.db.QueryRow("SELECT tot_emp FROM career_data WHERE occ_code = '00-0000' ORDER BY tot_emp DESC LIMIT 1").Scan(&totalJobs)
 	if err != nil {
 		return nil, fmt.Errorf("error querying total jobs: %v", err)
 	}
