@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -31,6 +32,10 @@ func main() {
 	// Initialize router
 	r := mux.NewRouter()
 
+	// API key middleware (no-op if API_KEYS not set)
+	apiKeys := getAPIKeys()
+	r.Use(apiKeyMiddleware(apiKeys))
+
 	// Initialize handlers with database connection
 	handlers := NewHandlers(db)
 
@@ -41,7 +46,7 @@ func main() {
 	api.HandleFunc("/locations", handlers.LocationsHandler).Methods("GET")
 	api.HandleFunc("/states", handlers.StatesHandler).Methods("GET")
 	api.HandleFunc("/areas-by-state", handlers.AreasByStateHandler).Methods("GET")
-	api.HandleFunc("/health", handlers.HealthHandler).Methods("GET")
+	api.HandleFunc("/health", handlers.HealthHandler).Methods("GET") // remains open even when API key auth enabled
 
 	// CORS configuration
 	c := cors.New(cors.Options{
@@ -105,4 +110,60 @@ func getAllowedOrigins() []string {
 		}
 	}
 	return allowed
+}
+
+// getAPIKeys returns a slice of allowed API keys from env var API_KEYS (comma separated).
+// If none provided, authentication is disabled.
+func getAPIKeys() []string {
+	raw := strings.TrimSpace(os.Getenv("API_KEYS"))
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	keys := make([]string, 0, len(parts))
+	for _, k := range parts {
+		k = strings.TrimSpace(k)
+		if k != "" {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
+// apiKeyMiddleware enforces presence of X-API-Key header matching configured keys.
+// Skips enforcement when no keys configured or for /api/health.
+func apiKeyMiddleware(keys []string) mux.MiddlewareFunc {
+	keySet := map[string]struct{}{}
+	for _, k := range keys {
+		keySet[k] = struct{}{}
+	}
+	return func(next http.Handler) http.Handler {
+		// Disabled if no keys
+		if len(keySet) == 0 {
+			return next
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Allow unauthenticated health checks
+			if r.URL.Path == "/api/health" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			provided := r.Header.Get("X-API-Key")
+			if provided == "" {
+				unauthorizedJSON(w, "missing API key")
+				return
+			}
+			if _, ok := keySet[provided]; !ok {
+				unauthorizedJSON(w, "invalid API key")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func unauthorizedJSON(w http.ResponseWriter, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
