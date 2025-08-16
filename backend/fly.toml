@@ -6,7 +6,7 @@ primary_region = "atl"
 
 [env]
   SERVER_PORT = "8080"
-  CORS_ORIGIN = "https://dream-job-reality-check.vercel.app"
+  CORS_ORIGIN = "https://dream-job-reality-check.vercel.app,https://www.dreamjobrealitycheck.com"
 
 [http_service]
   internal_port = 8080
