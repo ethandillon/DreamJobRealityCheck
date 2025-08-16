@@ -1,6 +1,7 @@
 // src/components/Filters.jsx
 
 import { useState, useEffect } from 'react';
+import { getOccupations, getStates, getAreasByState } from '../api/client';
 import CustomSelect from './CustomSelect'; // The custom dropdown component
 import SearchableDropdown from './SearchableDropdown'; // Import the new component
 import DataInfoModal from './DataInfoModal';
@@ -52,16 +53,9 @@ function Filters({ onCalculate }) {
   // Fetch occupations from the backend API
   useEffect(() => {
     const fetchOccupations = async () => {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
       try {
-        const response = await fetch(`${apiBase}/api/occupations`);
-        if (response.ok) {
-          const data = await response.json();
-          setOccupations(data.occupations || []);
-        } else {
-          console.error('Failed to fetch occupations');
-          setOccupations([]);
-        }
+        const data = await getOccupations();
+        setOccupations(data.occupations || []);
       } catch (error) {
         console.error('Error fetching occupations:', error);
         setOccupations([]);
@@ -69,23 +63,15 @@ function Filters({ onCalculate }) {
         setIsLoadingOccupations(false);
       }
     };
-
     fetchOccupations();
   }, []);
 
   // Fetch states on mount
   useEffect(() => {
     const fetchStates = async () => {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
       try {
-        const response = await fetch(`${apiBase}/api/states`);
-        if (response.ok) {
-          const data = await response.json();
-          setStates(data.states || []);
-        } else {
-          console.error('Failed to fetch states');
-          setStates([]);
-        }
+        const data = await getStates();
+        setStates(data.states || []);
       } catch (error) {
         console.error('Error fetching states:', error);
         setStates([]);
@@ -105,17 +91,10 @@ function Filters({ onCalculate }) {
     }
     const controller = new AbortController();
     const fetchAreas = async () => {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
       setIsLoadingAreas(true);
       try {
-        const response = await fetch(`${apiBase}/api/areas-by-state?state=${encodeURIComponent(selectedState)}`, { signal: controller.signal });
-        if (response.ok) {
-          const data = await response.json();
-          setAreas(data.areas || []);
-        } else {
-          console.error('Failed to fetch areas for state');
-          setAreas([]);
-        }
+        const data = await getAreasByState(selectedState, { signal: controller.signal });
+        setAreas(data.areas || []);
       } catch (error) {
         if (error.name !== 'AbortError') {
           console.error('Error fetching areas:', error);
