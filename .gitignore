@@ -121,3 +121,5 @@ backend/.env
 
 # Local secret configs
 secrets.json
+
+backend/tmp/
