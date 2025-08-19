@@ -32,10 +32,6 @@ func main() {
 	// Initialize router
 	r := mux.NewRouter()
 
-	// API key middleware (no-op if API_KEYS not set)
-	apiKeys := getAPIKeys()
-	r.Use(apiKeyMiddleware(apiKeys))
-
 	// Initialize handlers with database connection
 	handlers := NewHandlers(db)
 
@@ -128,38 +124,6 @@ func getAPIKeys() []string {
 		}
 	}
 	return keys
-}
-
-// apiKeyMiddleware enforces presence of X-API-Key header matching configured keys.
-// Skips enforcement when no keys configured or for /api/health.
-func apiKeyMiddleware(keys []string) mux.MiddlewareFunc {
-	keySet := map[string]struct{}{}
-	for _, k := range keys {
-		keySet[k] = struct{}{}
-	}
-	return func(next http.Handler) http.Handler {
-		// Disabled if no keys
-		if len(keySet) == 0 {
-			return next
-		}
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Allow unauthenticated health checks
-			if r.URL.Path == "/api/health" {
-				next.ServeHTTP(w, r)
-				return
-			}
-			provided := r.Header.Get("X-API-Key")
-			if provided == "" {
-				unauthorizedJSON(w, "missing API key")
-				return
-			}
-			if _, ok := keySet[provided]; !ok {
-				unauthorizedJSON(w, "invalid API key")
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
 }
 
 func unauthorizedJSON(w http.ResponseWriter, msg string) {
