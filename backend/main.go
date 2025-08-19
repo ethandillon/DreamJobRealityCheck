@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -47,7 +46,7 @@ func main() {
 	// CORS configuration
 	c := cors.New(cors.Options{
 		AllowedOrigins: getAllowedOrigins(),
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods: []string{"GET"},
 		AllowedHeaders: []string{"*"},
 	})
 
@@ -106,28 +105,4 @@ func getAllowedOrigins() []string {
 		}
 	}
 	return allowed
-}
-
-// getAPIKeys returns a slice of allowed API keys from env var API_KEYS (comma separated).
-// If none provided, authentication is disabled.
-func getAPIKeys() []string {
-	raw := strings.TrimSpace(os.Getenv("API_KEYS"))
-	if raw == "" {
-		return nil
-	}
-	parts := strings.Split(raw, ",")
-	keys := make([]string, 0, len(parts))
-	for _, k := range parts {
-		k = strings.TrimSpace(k)
-		if k != "" {
-			keys = append(keys, k)
-		}
-	}
-	return keys
-}
-
-func unauthorizedJSON(w http.ResponseWriter, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusUnauthorized)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
