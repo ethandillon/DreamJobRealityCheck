@@ -1,12 +1,9 @@
 // frontend/src/api/client.js
-// Centralized API client that automatically attaches the API key header.
-// NOTE: Exposing an API key in client-side code only provides light obfuscation.
-// For true secrecy, move privileged operations server-side or use a backend proxy.
+// Centralized API client for building query strings & handling JSON responses.
 
 // Normalize base URL (remove any trailing slashes)
 const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 const apiBase = rawBase.replace(/\/+$/, '');
-const apiKey = import.meta.env.VITE_API_KEY; // define in your frontend .env (VITE_*)
 
 function buildQuery(params) {
   const search = new URLSearchParams();
@@ -19,7 +16,6 @@ function buildQuery(params) {
 async function request(path, { method = 'GET', query, body, signal } = {}) {
   const url = query ? `${apiBase}${path}?${buildQuery(query)}` : `${apiBase}${path}`;
   const headers = new Headers();
-  if (apiKey) headers.set('X-API-Key', apiKey);
   if (body) headers.set('Content-Type', 'application/json');
 
   const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, signal });
