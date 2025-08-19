@@ -16,15 +16,16 @@ Screenshot (placeholder):
 2. [Features](#features)
 3. [User Inputs](#user-inputs)
 4. [Data Model](#data-model)
-5. [Backend API](#backend-api)
-6. [Frontend Components](#frontend-components)
-7. [Environment Variables](#environment-variables)
-8. [Local Development](#local-development)
-9. [Deployment](#deployment)
-10. [Request / Response Example](#request--response-example)
-11. [Business Logic Notes](#business-logic-notes)
-12. [Future Improvements](#future-improvements)
-13. [Acknowledgements](#acknowledgements)
+5. [Data Processing Pipeline](#data-processing-pipeline)
+6. [Backend API](#backend-api)
+7. [Frontend Components](#frontend-components)
+8. [Environment Variables](#environment-variables)
+9. [Local Development](#local-development)
+10. [Deployment](#deployment)
+11. [Request / Response Example](#request--response-example)
+12. [Business Logic Notes](#business-logic-notes)
+13. [Future Improvements](#future-improvements)
+14. [Acknowledgements](#acknowledgements)
 
 ---
 
@@ -89,6 +90,54 @@ Single table `career_data` (one row per occupation–area pair):
 Uniqueness: `(area_title, occ_code)`.
 
 National denominator: record with largest `tot_emp` where `occ_code = '00-0000'`.
+
+---
+
+## Data Processing Pipeline
+The `career_data` table is produced by preprocessing raw Bureau of Labor Statistics datasets. The scripts and intermediate artifacts live in `data-processing/`.
+
+**Source Inputs**
+| File | Origin | Purpose |
+|------|--------|---------|
+| `all_data_M_2023.xlsx` | OEWS (Occupational Employment & Wage Statistics) 2023 | Employment counts & wage distribution percentiles by occupation & area |
+| `education.xlsx` | BLS Employment Projections – Table 5.4 | Typical education needed for entry & work experience requirements |
+
+**High-Level Steps**
+1. Load OEWS workbook; treat `*`, `**`, `#` as missing.
+2. Filter to `I_GROUP == 'cross-industry'` (cross‑industry rollups only).
+3. Keep detailed occupations (`O_GROUP == 'detailed'`) OR the national aggregate row (`OCC_CODE == '00-0000'`).
+4. Deduplicate on `(AREA_TITLE, OCC_CODE)` (first record wins).
+5. Select & type‑clean employment + wage percentile columns; drop rows missing both employment and median salary.
+6. Load Employment Projections sheet `Table 5.4`; extract education & experience columns.
+7. Merge on `OCC_CODE` to enrich OEWS rows with education / experience ladders.
+8. Reorder columns → export `combined_career_data.csv`.
+9. Import CSV into Supabase Postgres as `career_data` (enforce UNIQUE `(area_title, occ_code)`).
+
+**Generated Artifacts**
+| File | Description |
+|------|-------------|
+| `cleaned_oes_data.csv` | Filtered & de‑duplicated OEWS subset (employment + wages) |
+| `combined_career_data.csv` | Final merged dataset loaded into production DB |
+
+**Scripts**
+| Script | Role |
+|--------|------|
+| `processData.py` | Produce `cleaned_oes_data.csv` from raw OEWS workbook |
+| `tableCombinationGenerator.py` | Merge cleaned OEWS with EP education/experience into final CSV |
+| `diagnose_duplicates.py` | Inspect problematic duplicate occupation/area key pairs |
+
+**Important Conventions**
+- National totals may have multiple variants; downstream code picks the largest `tot_emp` for `occ_code='00-0000'` as the canonical denominator.
+- Education & experience labels are preserved verbatim; ladder logic is applied in the backend at query time.
+- Salary threshold logic leverages percentile columns (`a_pct10`...`a_pct90`) enabling inclusive filtering.
+
+**Reproduce Locally**
+```
+cd data-processing
+python processData.py
+python tableCombinationGenerator.py
+```
+Load `combined_career_data.csv` into Postgres once validated (row counts & spot checks).
 
 ---
 
