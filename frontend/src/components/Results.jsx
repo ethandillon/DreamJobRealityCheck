@@ -21,7 +21,7 @@ const LoadingSpinner = () => (
 import { useState } from 'react';
 
 const ResultDisplay = ({ data }) => {
-  const [view, setView] = useState('national'); // 'national' | 'regional'
+  const [view, setView] = useState('regional'); // Default changed to 'regional' ('national' | 'regional')
   const percent = view === 'national' ? data.percentage : (data.percentageRegion ?? data.percentage);
   const percentStr = (() => {
     const num = Number(percent || 0);
