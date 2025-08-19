@@ -41,7 +41,11 @@ func main() {
 	api.HandleFunc("/locations", handlers.LocationsHandler).Methods("GET")
 	api.HandleFunc("/states", handlers.StatesHandler).Methods("GET")
 	api.HandleFunc("/areas-by-state", handlers.AreasByStateHandler).Methods("GET")
-	api.HandleFunc("/health", handlers.HealthHandler).Methods("GET") // remains open even when API key auth enabled
+	api.HandleFunc("/health", handlers.HealthHandler).Methods("GET")
+
+	// Attach rate limiter (100 req/min/IP)
+	limiter := NewRateLimiter(100, time.Minute)
+	api.Use(limiter.Middleware)
 
 	// CORS configuration
 	c := cors.New(cors.Options{
