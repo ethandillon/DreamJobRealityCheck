@@ -89,7 +89,7 @@ func (h *Handlers) CalculateHandler(w http.ResponseWriter, r *http.Request) {
 // OccupationsHandler provides a list of unique occupation titles
 func (h *Handlers) OccupationsHandler(w http.ResponseWriter, r *http.Request) {
 	// Query to get unique occupation titles
-	query := "SELECT DISTINCT occ_title FROM career_data WHERE occ_title IS NOT NULL AND occ_title != '' ORDER BY occ_title"
+	query := "SELECT DISTINCT occ_title FROM career_data WHERE occ_title IS NOT NULL AND occ_title != '' AND occ_title <> 'All Occupations' ORDER BY occ_title" // exclude aggregate row
 
 	rows, err := h.db.Query(query)
 	if err != nil {
