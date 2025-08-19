@@ -1,217 +1,157 @@
-# Dream Job Calculator Backend
+# Dream Job Reality Check – Backend
 
-A Go-based REST API backend for the Dream Job Calculator application that connects to PostgreSQL to calculate job opportunities based on user criteria.
+Go (1.21) service powering the Dream Job vs Reality calculator. Provides a read‑only REST API over a processed labor statistics dataset stored in PostgreSQL (`career_data` table). For any set of user criteria it returns:
+1. Regional perspective – how many jobs in the selected area meet the criteria.
+2. National perspective – how many jobs across the U.S. meet the same criteria.
+
+---
+
+## Table of Contents
+1. [Features](#features)
+2. [Architecture Overview](#architecture-overview)
+3. [User Inputs & Query Mapping](#user-inputs--query-mapping)
+4. [Data Model](#data-model)
+5. [Business Logic Conventions](#business-logic-conventions)
+6. [API Endpoints](#api-endpoints)
+7. [Rate Limiting](#rate-limiting)
+8. [CORS](#cors)
+9. [Environment Variables](#environment-variables)
+10. [Request / Response Example](#request--response-example)
+11. [Deployment](#deployment)
+12. [Implementation Notes](#implementation-notes)
+13. [Future Improvements](#future-improvements)
+14. [Key Files](#key-files)
+
+---
 
 ## Features
+- Read‑only JSON API (idempotent GET endpoints only)
+- Dynamic filtering with parameterized SQL
+- Inclusive salary distribution filtering
+- Education & experience “ladder” semantics
+- Dual regional + national metrics
+- Lightweight in‑memory per‑IP rate limiting (100 req/min)
+- Graceful shutdown & conservative HTTP timeouts
 
-- RESTful API endpoints for job calculations
-- PostgreSQL database integration
-- CORS support for frontend integration
-- Environment-based configuration
-- Health check endpoint
+## Architecture Overview
+Frontend gathers filters → calls `GET /api/calculate` → backend composes WHERE clauses only for provided filters → database returns aggregated employment & salary distribution → backend augments with national denominator (largest `tot_emp` for `occ_code='00-0000'`) → response includes counts, percentages, and salary band snapshot.
 
-## Prerequisites
+## User Inputs & Query Mapping
+Inputs (UI → query params on `/api/calculate`):
+| UI Field | Param | Mapping Notes |
+|----------|-------|--------------|
+| Occupation | `occupation` | Matches `occ_title` (case-insensitive) |
+| State | `location` or used in `/api/states` | Distinct state-level `area_title` |
+| Area within State | `location` | Full `area_title` string (metro / non-metro) |
+| Minimum annual salary | `minSalary` | Compared across percentile fields (see logic) |
+| Minimum education | `education` | Ladder mapping helper expands allowed values |
+| Required work experience | `experience` | Ladder mapping helper expands allowed values |
 
-- Go 1.21 or higher
-- PostgreSQL 12 or higher
-- Git
 
-## Setup
+## Data Model
+Single fact table `career_data` (one row per `(area_title, occ_code)` pair):
 
-### 1. Install Dependencies
+| Column      | Type           | Null | Description |
+|-------------|----------------|------|-------------|
+| id          | SERIAL (int)   | NO   | Surrogate primary key |
+| area_title  | VARCHAR(255)   | NO   | Geographic area / metro / state / non‑metro label |
+| occ_code    | VARCHAR(15)    | NO   | Standard occupation code (e.g. `15-1252`) |
+| occ_title   | VARCHAR(255)   | YES  | Human readable occupation title |
+| education   | VARCHAR(255)   | YES  | Minimum education requirement label (as published / normalized) |
+| experience  | VARCHAR(255)   | YES  | Required prior work experience label |
+| tot_emp     | INTEGER        | YES  | Total employment count for the occupation in the area |
+| a_median    | INTEGER        | YES  | Median annual wage (USD) |
+| a_pct10     | INTEGER        | YES  | 10th percentile annual wage |
+| a_pct25     | INTEGER        | YES  | 25th percentile annual wage |
+| a_pct75     | INTEGER        | YES  | 75th percentile annual wage |
+| a_pct90     | INTEGER        | YES  | 90th percentile annual wage |
 
-```bash
-go mod tidy
-```
+Composite uniqueness: `(area_title, occ_code)` ensures no duplicate occupation entries per area.
 
-**Note**: Make sure your existing PostgreSQL database has a `jobs` table with the required structure. The backend expects this table to exist and be properly configured.
-
-### 2. Database Setup
-
-Since you already have a PostgreSQL database set up, ensure your database has a `career_data` table with the following structure:
-
-- `id`: Primary key (SERIAL)
-- `area_title`: Location/area (VARCHAR)
-- `occ_code`: Occupation code (VARCHAR)
-- `occ_title`: Occupation title (VARCHAR)
-- `education`: Required education level (VARCHAR)
-- `experience`: Required experience level (VARCHAR)
-- `tot_emp`: Total employment count (NUMERIC)
-- `a_median`: Median annual salary (NUMERIC)
-- `a_pct10`: 10th percentile salary (NUMERIC)
-- `a_pct25`: 25th percentile salary (NUMERIC)
-- `a_pct75`: 75th percentile salary (NUMERIC)
-- `a_pct90`: 90th percentile salary (NUMERIC)
-
-### 3. Environment Configuration
-
-Copy the `.env.example` file to `.env` and update the values:
-
-```bash
-cp .env.example .env
-```
-
-Update the `.env` file with your database credentials:
-
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=your_username
-DB_PASSWORD=your_password
-DB_NAME=dream_job_calculator
-DB_SSLMODE=disable
-
-SERVER_PORT=8080
-CORS_ORIGIN=http://localhost:5173
-```
-
-### 4. Run the Application
-
-```bash
-go run .
-```
-
-The server will start on port 8080 (or the port specified in your .env file).
+## Business Logic Conventions
+- National denominator: select the row with largest `tot_emp` where `occ_code='00-0000'`.
+- Salary filter: if ANY of `a_median, a_pct10, a_pct25, a_pct75, a_pct90` ≥ `minSalary`, the record qualifies (broad/inclusive to surface potential career paths even when central tendency is lower).
+- Education & experience: ladder semantics include higher levels automatically except explicit non-ladder cases handled in helpers.
+- Percentages: `percentageRegion = matchingJobs / totalJobsRegion`, `percentage = matchingJobs / totalJobs` (national).
 
 ## API Endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/calculate` | Returns employment match metrics & salary info |
+| GET | `/api/occupations` | Distinct `occ_title` values |
+| GET | `/api/locations` | Distinct non-national `area_title` values |
+| GET | `/api/states` | State-level area titles (no commas) |
+| GET | `/api/areas-by-state?state=STATE_NAME` | All granular areas for the state |
+| GET | `/api/health` | Liveness/health check |
 
-### GET /api/calculate
+All endpoints return JSON and are safe to cache (dataset is static for end users).
 
-Calculates job opportunities based on provided filters.
 
-**Query Parameters:**
-- `location` (required): City and state (e.g., "San Francisco, CA")
-- `occupation` (optional): Job title or field
-- `minSalary` (optional): Minimum annual salary
-- `education` (optional): Required education level
-- `experience` (optional): Required work experience
+## Rate Limiting
+In-memory per-IP (100 req/min/IP). Keys on first valid client IP from headers: `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`; falls back to `RemoteAddr`. Suitable for single instance or low scale. For horizontal scale, replace with shared store (Redis) or external gateway.
 
-**Example Request:**
+## CORS
+Configured via `CORS_ORIGIN` (comma-separated). Local default: `http://localhost:5173,http://localhost:5174`. Parsed into allowed origins slice in `main.go`.
+
+## Environment Variables
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| DB_HOST | PostgreSQL host | `localhost` |
+| DB_PORT | PostgreSQL port | `5432` |
+| DB_USER | DB user | `appuser` |
+| DB_PASSWORD | DB password | `***` |
+| DB_NAME | Database name | `dream_job` |
+| DB_SSLMODE | TLS mode (`disable` local / `require` prod) | `require` |
+| SERVER_PORT | HTTP listen port | `8080` |
+| CORS_ORIGIN | Allowed origins (comma list) | `https://dream-job-reality-check.vercel.app` |
+
+## Request / Response Example
+Request:
 ```
-GET /api/calculate?location=San Francisco, CA&occupation=Software Developer&minSalary=100000&education=Bachelor's degree&experience=2-4 years
+GET /api/calculate?location=Detroit-Warren-Dearborn%2C+MI&occupation=Software+Developers&minSalary=70000
 ```
-
-**Response:**
+Response:
 ```json
 {
-  "percentage": 12.5,
-  "matchingJobs": 1250,
-  "totalJobs": 10000,
-  "location": "San Francisco, CA",
+  "percentage": 0.0158902766192261,
+  "percentageRegion": 0.638723083235174,
+  "matchingJobs": 24130,
+  "totalJobs": 151853870,
+  "totalJobsRegion": 3777850,
+  "location": "Detroit-Warren-Dearborn, MI",
   "minSalaryMet": true,
   "salaryInfo": {
-    "medianSalary": 120000,
-    "pct10Salary": 80000,
-    "pct25Salary": 95000,
-    "pct75Salary": 150000,
-    "pct90Salary": 180000
+    "medianSalary": 107490,
+    "pct10Salary": 76740,
+    "pct25Salary": 90060,
+    "pct75Salary": 133160,
+    "pct90Salary": 162950
   }
 }
 ```
 
-### GET /api/health
-
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "healthy"
-}
-```
-
-## Database Schema
-
-The main table is `jobs` with the following structure:
-
-- `id`: Primary key
-- `title`: Job title
-- `occupation`: Job category
-- `location`: City and state
-- `annual_salary`: Annual salary in USD
-- `required_education`: Minimum education requirement
-- `required_experience`: Minimum experience requirement
-- `company`: Company name
-- `industry`: Industry sector
-- `created_at`: Record creation timestamp
-
-## Development
-
-### Project Structure
-
-```
-backend/
-├── main.go          # Main application entry point
-├── database.go      # Database connection and initialization
-├── handlers.go      # HTTP request handlers
-├── go.mod           # Go module file
-├── go.sum           # Go dependencies checksum
-└── .env             # Environment configuration
-```
-
-### Adding New Endpoints
-
-1. Add the route in `main.go`
-2. Create the handler function in `handlers.go`
-3. Update the `Handlers` struct if needed
-
-### Database Queries
-
-All database queries are built dynamically based on the provided filters. The `buildQuery` function in `handlers.go` constructs parameterized SQL queries to prevent SQL injection.
-
-## Testing
-
-To test the API endpoints:
-
-```bash
-# Health check
-curl http://localhost:8080/api/health
-
-# Calculate job opportunities
-curl "http://localhost:8080/api/calculate?location=San Francisco, CA&occupation=Software Developer&minSalary=100000"
-```
-
 ## Deployment
+Containerized and deployed on Fly.io. Secrets configured with `fly secrets` (DB credentials + CORS origins). Health check uses `/api/health`. Stateless binary; scaling is linear (add instances) since all persistence is in Postgres.
 
-### Fly.io (container deploy)
+## Implementation Notes
+- HTTP server timeouts: read 15s, write 30s, idle 60s, header 10s.
+- `MaxHeaderBytes` capped to mitigate oversized header attacks.
+- Graceful shutdown on SIGINT/SIGTERM with 10s context.
+- Parameterized SQL only (no string concatenation of user input).
 
-1. Install flyctl and login
-```bash
-brew install flyctl   # macOS
-fly auth login
-```
-2. From `backend/`, create app (or edit `fly.toml` directly)
-```bash
-fly launch --no-deploy
-```
-3. Configure secrets (DB credentials, CORS)
-```bash
-fly secrets set DB_HOST=... DB_PORT=5432 DB_USER=... DB_PASSWORD=... DB_NAME=... DB_SSLMODE=require CORS_ORIGIN=https://dream-job-reality-check.vercel.app
-```
-4. Deploy
-```bash
-fly deploy
-```
+## Future Improvements
+- Replace in-memory rate limiter with distributed backend (Redis) for multi-instance deployments.
+- Cache static lookup endpoints (`/api/occupations`, `/api/states`).
+- Precompute national denominator once at startup.
+- Externalize education/experience ladders into reference table.
+- Add observability: structured logging & basic metrics (latency, error counts).
 
-Health check: `/api/health` on port 8080. See `fly.toml`.
+## Key Files
+| File | Purpose |
+|------|---------|
+| `main.go` | Server bootstrap, routing, middleware, shutdown |
+| `handlers.go` | Request parsing, query building, response formatting |
+| `rate_limiter.go` | In-memory per-IP rate limiting middleware |
+| `database.go` | PostgreSQL connection initialization |
 
-1. Build the binary:
-```bash
-go build -o dream-job-calculator .
-```
-
-2. Set environment variables in production
-3. Run the binary with proper database credentials
-4. Ensure CORS origins are configured for your production domain
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Database Connection Failed**: Check your `.env` file and ensure PostgreSQL is running
-2. **Port Already in Use**: Change the `SERVER_PORT` in your `.env` file
-3. **CORS Errors**: Verify the `CORS_ORIGIN` setting matches your frontend URL
-
-### Logs
-
-The application logs connection status and any errors to stdout. Check the console output for debugging information.
+---
