@@ -34,7 +34,7 @@ Screenshot (placeholder):
 | Frontend | React 19 + Vite + Tailwind | Collect filters, display results (regional / national toggle) |
 | Backend | Go 1.21 | REST API, query construction, aggregation, percentage computation, rate limiting |
 | Database | Supabase (PostgreSQL) | Managed Postgres: single fact table `career_data` with employment & wage distribution data |
-| Hosting (example) | Fly.io (API), Vercel/Static Host (UI), Supabase (DB) | Stateless API container + static frontend + managed DB |
+| Hosting | Fly.io (API), Vercel/Static Host (UI), Supabase (DB) | Stateless API container + static frontend + managed DB |
 
 Flow: UI builds query params → `GET /api/calculate` → backend queries Supabase Postgres & aggregates employment & salaries → adds national denominator → JSON returned → UI displays counts & percentages.
 
