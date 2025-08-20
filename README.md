@@ -4,7 +4,6 @@ Interactive tool that answers: *"What percentage of jobs meet my standards?"*
 Users pick an occupation, geography (state + area), minimum salary, education, and experience. The app returns two perspectives:
 1. Regional – Jobs meeting criteria in the chosen area.
 2. National – Jobs meeting the same criteria across the entire U.S.
-Screenshot (placeholder):
 
 ![App Screenshot](docs/screenshot.png)
 - Live App: **[https://www.dreamjobrealitycheck.com/](https://www.dreamjobrealitycheck.com/)** 
