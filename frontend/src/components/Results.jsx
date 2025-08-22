@@ -1,5 +1,8 @@
 // src/components/Results.jsx
 import { AnimatedGradientBorder } from './AnimatedGradientBorder'; // 1. Import our new component
+import { useState, useRef } from 'react';
+import { toPng } from 'html-to-image';
+import { ShareIcon } from '@heroicons/react/24/outline';
 
 // ... (Placeholder and LoadingSpinner components remain the same) ...
 const Placeholder = () => (
@@ -18,9 +21,8 @@ const LoadingSpinner = () => (
     </div>
   );
 
-import { useState } from 'react';
-
 const ResultDisplay = ({ data }) => {
+  const cardRef = useRef(null);
   const [view, setView] = useState('regional'); // Default changed to 'regional' ('national' | 'regional')
   const percent = view === 'national' ? data.percentage : (data.percentageRegion ?? data.percentage);
   const percentStr = (() => {
@@ -47,16 +49,48 @@ const ResultDisplay = ({ data }) => {
   const denom = view === 'national' ? data.totalJobs : (data.totalJobsRegion ?? data.totalJobs);
   const toggle = () => setView(v => (v === 'national' ? 'regional' : 'national'));
 
+  const handleShare = async () => {
+    const node = cardRef.current;
+    if (!node) return;
+    try {
+      const dataUrl = await toPng(node, {
+        cacheBust: true,
+        pixelRatio: Math.max(2, window.devicePixelRatio || 1),
+        filter: (n) => {
+          // Exclude UI-only controls from export
+          if (n.classList && n.classList.contains('no-export')) return false;
+          return true;
+        },
+      });
+      const link = document.createElement('a');
+      link.download = 'dream-job-results.png';
+      link.href = dataUrl;
+      link.click();
+    } catch (e) {
+      console.error('Failed to export image', e);
+    }
+  };
+
   return (
   // 2. Replace the old div with our AnimatedGradientBorder component
-  <AnimatedGradientBorder
-    // 3. Move all layout and styling classes here
-    className="relative text-center text-white p-10 rounded-xl shadow-lg backdrop-blur-sm max-w-2xl"
-  >
+  <div ref={cardRef} className="inline-block">
+    <AnimatedGradientBorder
+      // 3. Move all layout and styling classes here
+      className="relative text-center text-white p-10 rounded-xl shadow-lg backdrop-blur-sm max-w-2xl"
+    >
+    {/* Share button in the top-left */}
+    <button
+      onClick={handleShare}
+      className="no-export absolute top-3 left-3 p-0 m-0 bg-transparent cursor-pointer"
+      aria-label="Download results as PNG"
+      title="Download results as PNG"
+    >
+      <ShareIcon className="h-4 w-4 text-white opacity-80 hover:opacity-100" />
+    </button>
     {/* Subtle toggle button in the top-right */}
     <button
       onClick={toggle}
-      className="absolute top-3 right-3 p-0 m-0 bg-transparent cursor-pointer"
+      className="no-export absolute top-3 right-3 p-0 m-0 bg-transparent cursor-pointer"
       aria-label="Toggle national/regional view"
       title={view === 'national' ? 'Switch to regional view' : 'Switch to national view'}
     >
@@ -72,7 +106,8 @@ const ResultDisplay = ({ data }) => {
     </p>
     
     {/* Salary Information removed by request */}
-  </AnimatedGradientBorder>
+    </AnimatedGradientBorder>
+  </div>
   );
 };
 

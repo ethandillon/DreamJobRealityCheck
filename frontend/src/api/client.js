@@ -21,7 +21,8 @@ async function request(path, { method = 'GET', query, body, signal } = {}) {
   const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, signal });
   if (!res.ok) {
     let detail = '';
-    try { detail = JSON.stringify(await res.json()); } catch (_) {}
+    const text = await res.text().catch(() => '');
+    detail = text || '';
     throw new Error(`API ${res.status} ${res.statusText} ${detail}`.trim());
   }
   return res.json();
