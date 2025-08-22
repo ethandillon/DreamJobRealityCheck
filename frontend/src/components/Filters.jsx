@@ -1,6 +1,6 @@
 // src/components/Filters.jsx
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getOccupations, getStates, getAreasByState } from '../api/client';
 import CustomSelect from './CustomSelect'; // The custom dropdown component
 import SearchableDropdown from './SearchableDropdown'; // Import the new component
@@ -61,6 +61,8 @@ function Filters({ onCalculate, initialValues }) {
   const [areas, setAreas] = useState([]); // Areas for the selected state
   const [isLoadingAreas, setIsLoadingAreas] = useState(false);
   const [showDataInfo, setShowDataInfo] = useState(false);
+  // Track initial URL hydration to avoid clearing the area prematurely
+  const hydratingRef = useRef(Boolean(initialValues?.location));
 
   // Fetch occupations from the backend API
   useEffect(() => {
@@ -97,8 +99,11 @@ function Filters({ onCalculate, initialValues }) {
   // Fetch areas when a state is selected
   useEffect(() => {
     if (!selectedState) {
-      setAreas([]);
-      setLocation('');
+      // During initial hydration, don't clear the location value yet
+      if (!hydratingRef.current) {
+        setAreas([]);
+        setLocation('');
+      }
       return;
     }
     const controller = new AbortController();
@@ -107,6 +112,12 @@ function Filters({ onCalculate, initialValues }) {
       try {
         const data = await getAreasByState(selectedState, { signal: controller.signal });
         setAreas(data.areas || []);
+        // After we load areas for the first time, if we came from a shared URL,
+        // ensure the area dropdown keeps the original area (if provided)
+        if (hydratingRef.current && initialValues?.location) {
+          setLocation(initialValues.location);
+          hydratingRef.current = false;
+        }
       } catch (error) {
         if (error.name !== 'AbortError') {
           console.error('Error fetching areas:', error);
@@ -120,17 +131,24 @@ function Filters({ onCalculate, initialValues }) {
     return () => controller.abort();
   }, [selectedState]);
 
-  // Try to derive selectedState from location (on mount / when initialValues change)
+  // Try to derive selectedState from a shared location (on mount / when initialValues change)
   useEffect(() => {
     if (!initialValues?.location || selectedState) return;
     const loc = initialValues.location;
-    // Heuristic: if location contains ", XY" use that; else if it equals a state name, set it directly
-    const stateFromComma = /,\s*([A-Z]{2})(?:\b|-)/.exec(loc)?.[1];
-    if (stateFromComma && ABR_TO_STATE[stateFromComma]) {
-      setSelectedState(ABR_TO_STATE[stateFromComma]);
+    // Patterns:
+    // 1) MSA like "Atlanta-Sandy Springs-Roswell, GA" -> GA -> Georgia
+    const abbrMatch = /,\s*([A-Z]{2})(?:\b|-)/.exec(loc)?.[1];
+    if (abbrMatch && ABR_TO_STATE[abbrMatch]) {
+      setSelectedState(ABR_TO_STATE[abbrMatch]);
       return;
     }
-    // If the location looks like a full state name (no comma), set it
+    // 2) Nonmetropolitan area like "Texas nonmetropolitan area" -> Texas
+    const nonMetro = /(.*)\s+nonmetropolitan area$/i.exec(loc)?.[1];
+    if (nonMetro) {
+      setSelectedState(nonMetro);
+      return;
+    }
+    // 3) If the location looks like an exact state name (no comma), set it directly
     if (!loc.includes(',')) {
       setSelectedState(loc);
     }
