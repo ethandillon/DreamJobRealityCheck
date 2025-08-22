@@ -26,6 +26,18 @@ const experienceOptions = [
   "5 years or more",
 ];
 
+// Minimal USPS abbreviation to state name map for deriving state from shared URLs
+const ABR_TO_STATE = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut',
+  DE: 'Delaware', DC: 'District of Columbia', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois',
+  IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts',
+  MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada',
+  NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota',
+  OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota',
+  TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia',
+  WI: 'Wisconsin', WY: 'Wyoming', PR: 'Puerto Rico', GU: 'Guam', VI: 'Virgin Islands'
+};
+
 // A reusable component for our form rows to keep the code clean
 const FilterRow = ({ label, children }) => (
   <div className="mb-6">
@@ -34,14 +46,14 @@ const FilterRow = ({ label, children }) => (
   </div>
 );
 
-function Filters({ onCalculate }) {
+function Filters({ onCalculate, initialValues }) {
   // State hooks to manage the form inputs
-  const [location, setLocation] = useState('');
+  const [location, setLocation] = useState(initialValues?.location || '');
   const [selectedState, setSelectedState] = useState('');
-  const [occupation, setOccupation] = useState(''); // Add state for occupation
-  const [minSalary, setMinSalary] = useState(80000);
-  const [education, setEducation] = useState(educationOptions[0]); // Default to "Any"
-  const [experience, setExperience] = useState(experienceOptions[0]); // Default to "Any"
+  const [occupation, setOccupation] = useState(initialValues?.occupation || ''); // Add state for occupation
+  const [minSalary, setMinSalary] = useState(initialValues?.minSalary ?? 80000);
+  const [education, setEducation] = useState(initialValues?.education || educationOptions[0]); // Default to "Any"
+  const [experience, setExperience] = useState(initialValues?.experience || experienceOptions[0]); // Default to "Any"
   const [occupations, setOccupations] = useState([]); // State for real occupation data
   const [isLoadingOccupations, setIsLoadingOccupations] = useState(true); // Loading state
   const [states, setStates] = useState([]); // State list for first dropdown
@@ -108,6 +120,23 @@ function Filters({ onCalculate }) {
     return () => controller.abort();
   }, [selectedState]);
 
+  // Try to derive selectedState from location (on mount / when initialValues change)
+  useEffect(() => {
+    if (!initialValues?.location || selectedState) return;
+    const loc = initialValues.location;
+    // Heuristic: if location contains ", XY" use that; else if it equals a state name, set it directly
+    const stateFromComma = /,\s*([A-Z]{2})(?:\b|-)/.exec(loc)?.[1];
+    if (stateFromComma && ABR_TO_STATE[stateFromComma]) {
+      setSelectedState(ABR_TO_STATE[stateFromComma]);
+      return;
+    }
+    // If the location looks like a full state name (no comma), set it
+    if (!loc.includes(',')) {
+      setSelectedState(loc);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValues]);
+
   const handleSubmit = (event) => {
     event.preventDefault(); // Prevent full page reload on form submission
     const payload = { location, occupation, minSalary };
@@ -161,7 +190,7 @@ function Filters({ onCalculate }) {
           />
         </FilterRow>
 
-        <FilterRow label={`Minimum Annual Salary: $${Number(minSalary).toLocaleString()}`}>
+  <FilterRow label={`Minimum Annual Salary: $${Number(minSalary).toLocaleString()}`}>
           <input
             type="range"
             min="30000"

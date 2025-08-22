@@ -1,7 +1,6 @@
 // src/components/Results.jsx
 import { AnimatedGradientBorder } from './AnimatedGradientBorder'; // 1. Import our new component
-import { useState, useRef } from 'react';
-import { toPng } from 'html-to-image';
+import { useState } from 'react';
 import { ShareIcon } from '@heroicons/react/24/outline';
 
 // ... (Placeholder and LoadingSpinner components remain the same) ...
@@ -21,9 +20,9 @@ const LoadingSpinner = () => (
     </div>
   );
 
-const ResultDisplay = ({ data }) => {
-  const cardRef = useRef(null);
+const ResultDisplay = ({ data, shareFilters }) => {
   const [view, setView] = useState('regional'); // Default changed to 'regional' ('national' | 'regional')
+  const [copied, setCopied] = useState(false);
   const percent = view === 'national' ? data.percentage : (data.percentageRegion ?? data.percentage);
   const percentStr = (() => {
     const num = Number(percent || 0);
@@ -50,30 +49,33 @@ const ResultDisplay = ({ data }) => {
   const toggle = () => setView(v => (v === 'national' ? 'regional' : 'national'));
 
   const handleShare = async () => {
-    const node = cardRef.current;
-    if (!node) return;
+    // Build a shareable URL with current filters from parent
+    const params = new URLSearchParams();
+    const f = shareFilters || {};
+    Object.entries(f).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') params.set(k, String(v));
+    });
+    const url = `${window.location.origin}${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
     try {
-      const dataUrl = await toPng(node, {
-        cacheBust: true,
-        pixelRatio: Math.max(2, window.devicePixelRatio || 1),
-        filter: (n) => {
-          // Exclude UI-only controls from export
-          if (n.classList && n.classList.contains('no-export')) return false;
-          return true;
-        },
-      });
-      const link = document.createElement('a');
-      link.download = 'dream-job-results.png';
-      link.href = dataUrl;
-      link.click();
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     } catch (e) {
-      console.error('Failed to export image', e);
+      // Fallback: open the native share dialog if available
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'Dream Job Reality Check', url });
+          return;
+        } catch (_) {}
+      }
+      // Last resort: prompt
+      window.prompt('Copy this URL', url);
     }
   };
 
   return (
   // 2. Replace the old div with our AnimatedGradientBorder component
-  <div ref={cardRef} className="inline-block">
+  <div className="inline-block">
     <AnimatedGradientBorder
       // 3. Move all layout and styling classes here
       className="relative text-center text-white p-10 rounded-xl shadow-lg backdrop-blur-sm max-w-2xl"
@@ -82,11 +84,14 @@ const ResultDisplay = ({ data }) => {
     <button
       onClick={handleShare}
       className="no-export absolute top-3 left-3 p-0 m-0 bg-transparent cursor-pointer"
-      aria-label="Download results as PNG"
-      title="Download results as PNG"
+      aria-label="Copy shareable link"
+      title="Copy shareable link"
     >
-      <ShareIcon className="h-4 w-4 text-white opacity-80 hover:opacity-100" />
+      <ShareIcon className={`h-4 w-4 ${copied ? 'text-emerald-300' : 'text-white'} opacity-80 hover:opacity-100`} />
     </button>
+    {copied && (
+      <div className="no-export absolute top-3 left-9 text-xs text-emerald-300">Link copied</div>
+    )}
     {/* Subtle toggle button in the top-right */}
     <button
       onClick={toggle}
@@ -118,7 +123,7 @@ const ErrorDisplay = ({ message }) => (
     </div>
   );
 
-function Results({ isLoading, data, error }) {
+function Results({ isLoading, data, error, shareFilters }) {
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -126,7 +131,7 @@ function Results({ isLoading, data, error }) {
     return <ErrorDisplay message={error} />;
   }
   if (data) {
-    return <ResultDisplay data={data} />;
+    return <ResultDisplay data={data} shareFilters={shareFilters} />;
   }
   return <Placeholder />;
 }
